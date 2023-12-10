@@ -28,7 +28,7 @@ class MixupDataset(Dataset):
         chosen_image, chosen_label = self.dataset[non_object]
         # Mixup - łączenie obrazów z etykietami
         mixed_img = self.alpha * chosen_image + (1 - self.alpha) * img 
-        if self.path:
+        if self.shoud_save and self.path:
             path = self.path.joinpath(f"{label}/{index}")
             path.mkdir(parents=True, exist_ok=True)
             save_image(mixed_img, path.joinpath(f"{label}-id-{index}-to-{chosen_label}-id-{non_object}-step-{self.alpha}.jpeg"))

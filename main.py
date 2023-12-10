@@ -43,6 +43,40 @@ def test_model_with_data_loader(model, data_loader: DataLoader, mask_intensity: 
         return storage
 
 
+def handle_mixup(augumentation: MixupAugumentation, dataset: CIFAR10, iterator: list):
+    """Handle mixup augumentation"""
+    for class_ in augumentation.classes:
+        chosen_indices = [idx for idx, label in enumerate(cifar.targets) if label == class_]
+
+        print("Performing mixup for {}".format(class_))
+        for step in iterator: 
+            dataset_step = MixupDataset(dataset, chosen_indices, step, path="{}/images/class-{}/{}".format(formatted_path, class_ , step) )
+            dataloader =  DataLoader(dataset_step, batch_size=50, shuffle=False, drop_last=False)
+            to_save = test_model_with_data_loader(model, dataloader, step)
+            df = pd.DataFrame(to_save, columns=conf.columns)
+            df["noise_percent"] = df["noise_percent"].apply(lambda numb: round(numb / augumentation.max_size, 2))
+            save_path = "{}/dataframes/{}.pickle".format(BASE_PATH.format(conf.model, conf.tag, augumentation.name), step )
+            print("Saving...")
+            df.to_pickle(save_path)
+
+
+def handle_noise(augumentation: NoiseAugumentation, dataset: CIFAR10, iterator: list):
+    """Handle noise augumentation"""
+    for step in iterator: 
+        transforms = A.Compose([
+            NoiseTransform(number_of_pixels=step, shuffled_indexes=augumentation.shuffled_indexes, mask=augumentation.mask),
+            ToTensorV2()
+        ])
+        dataset.transform = lambda x : transforms(image=np.array(x))["image"].float()/255.0 
+        dataloader = DataLoader(cifar, batch_size=50, shuffle=False, drop_last=False)
+        to_save = test_model_with_data_loader(model, dataloader, step)
+                    
+        df = pd.DataFrame(to_save, columns=conf.columns)
+        df["noise_percent"] = df["noise_percent"].apply(lambda numb: round(numb / augumentation.max_size, 2))
+        save_path = "{}/dataframes/{}.pickle".format(BASE_PATH.format(conf.model, conf.tag, augumentation.name), step )
+        print("Saving...")
+        df.to_pickle(save_path)
+
 
 
 if __name__ == "__main__":
@@ -67,27 +101,33 @@ if __name__ == "__main__":
             formatted_path = BASE_PATH.format(conf.model, conf.tag, augumentation.name)
             print("current augumentation {}".format(augumentation.name))
             iterator = augumentation.make_iterator()
-            for step in iterator: 
-                print("current step {}".format(step))            
-                if isinstance(augumentation, MixupAugumentation): 
-                    dataset_step = MixupDataset(cifar, cat_class_indices, step, should_save_processing=conf.save_preprocessing, path="{}/images/{}".format(formatted_path, step) )
-                    dataloader =  DataLoader(dataset_step, batch_size=50, shuffle=False, drop_last=False)
-                elif isinstance(augumentation, NoiseAugumentation):
-                    transforms = A.Compose([
-                        NoiseTransform(number_of_pixels=step, shuffled_indexes=augumentation.shuffled_indexes, mask=augumentation.mask),
-                        ToTensorV2()
-                    ])
-                    cifar.transform = lambda x : transforms(image=np.array(x))["image"].float()/255.0 
-                    dataloader = DataLoader(cifar, batch_size=50, shuffle=False, drop_last=False)
+            if isinstance(augumentation, MixupAugumentation):
+                handle_mixup(augumentation, cifar, iterator)
+            elif isinstance(augumentation, NoiseAugumentation):
+                handle_noise(augumentation, cifar, iterator)
+            # TODO: dodawanie transformacji w postaci obrotu obrazka
 
-                to_save = test_model_with_data_loader(model, dataloader, step)
+            # for step in iterator: 
+            #     print("current step {}".format(step))            
+            #     if isinstance(augumentation, MixupAugumentation): 
+            #         dataset_step = MixupDataset(cifar, cat_class_indices, step, should_save_processing=conf.save_preprocessing, path="{}/images/{}".format(formatted_path, step) )
+            #         dataloader =  DataLoader(dataset_step, batch_size=50, shuffle=False, drop_last=False)
+            #     elif isinstance(augumentation, NoiseAugumentation):
+            #         transforms = A.Compose([
+            #             NoiseTransform(number_of_pixels=step, shuffled_indexes=augumentation.shuffled_indexes, mask=augumentation.mask),
+            #             ToTensorV2()
+            #         ])
+            #         cifar.transform = lambda x : transforms(image=np.array(x))["image"].float()/255.0 
+            #         dataloader = DataLoader(cifar, batch_size=50, shuffle=False, drop_last=False)
+
+            #     to_save = test_model_with_data_loader(model, dataloader, step)
                 
-                df = pd.DataFrame(to_save, columns=conf.columns)
-                if isinstance(augumentation, NoiseAugumentation):
-                    df["noise_percent"] = df["noise_percent"].apply(lambda numb: round(numb / 1024, 2))
-                elif isinstance(augumentation, MixupAugumentation):
-                    df["noise_percent"] = df["noise_percent"].apply(lambda numb: round(numb / 100, 2))
+            #     df = pd.DataFrame(to_save, columns=conf.columns)
+            #     # if isinstance(augumentation, NoiseAugumentation):
+            #     df["noise_percent"] = df["noise_percent"].apply(lambda numb: round(numb / augumentation.max_size, 2))
+            #     # elif isinstance(augumentation, MixupAugumentation):
+            #         # df["noise_percent"] = df["noise_percent"].apply(lambda numb: round(numb / a, 2))
                 
-                save_path = "{}/dataframes/{}.pickle".format(BASE_PATH.format(conf.model, conf.tag, augumentation.name), step )
-                print("Saving...")
-                df.to_pickle(save_path)
+            #     save_path = "{}/dataframes/{}.pickle".format(BASE_PATH.format(conf.model, conf.tag, augumentation.name), step )
+            #     print("Saving...")
+            #     df.to_pickle(save_path)

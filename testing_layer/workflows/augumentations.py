@@ -28,13 +28,15 @@ class BaseAugumentation:
 
 
 class NoiseAugumentation(BaseAugumentation):
-    def __init__(self, config: dict) -> None:
+    def __init__(self, config: dict, image_dim: list) -> None:
         super().__init__(config)
-        self.mask = generate_mask([32, 32, 3])
-        self.shuffled_indexes = create_and_shuffle_indexes((32, 32))
+        self.mask = generate_mask(reversed(image_dim))
+        self.shuffled_indexes = create_and_shuffle_indexes(image_dim)
+        self.max_size = image_dim[1] * image_dim[2]
         
 class MixupAugumentation(BaseAugumentation):
-    def __init__(self, config: dict) -> None:
+    def __init__(self, config: dict, image_dim: list) -> None:
         super().__init__(config)
-
+        self.max_size = 100
+        self.classes = config["picked_classes"]
 
