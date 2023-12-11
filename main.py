@@ -106,28 +106,3 @@ if __name__ == "__main__":
             elif isinstance(augumentation, NoiseAugumentation):
                 handle_noise(augumentation, cifar, iterator)
             # TODO: dodawanie transformacji w postaci obrotu obrazka
-
-            # for step in iterator: 
-            #     print("current step {}".format(step))            
-            #     if isinstance(augumentation, MixupAugumentation): 
-            #         dataset_step = MixupDataset(cifar, cat_class_indices, step, should_save_processing=conf.save_preprocessing, path="{}/images/{}".format(formatted_path, step) )
-            #         dataloader =  DataLoader(dataset_step, batch_size=50, shuffle=False, drop_last=False)
-            #     elif isinstance(augumentation, NoiseAugumentation):
-            #         transforms = A.Compose([
-            #             NoiseTransform(number_of_pixels=step, shuffled_indexes=augumentation.shuffled_indexes, mask=augumentation.mask),
-            #             ToTensorV2()
-            #         ])
-            #         cifar.transform = lambda x : transforms(image=np.array(x))["image"].float()/255.0 
-            #         dataloader = DataLoader(cifar, batch_size=50, shuffle=False, drop_last=False)
-
-            #     to_save = test_model_with_data_loader(model, dataloader, step)
-                
-            #     df = pd.DataFrame(to_save, columns=conf.columns)
-            #     # if isinstance(augumentation, NoiseAugumentation):
-            #     df["noise_percent"] = df["noise_percent"].apply(lambda numb: round(numb / augumentation.max_size, 2))
-            #     # elif isinstance(augumentation, MixupAugumentation):
-            #         # df["noise_percent"] = df["noise_percent"].apply(lambda numb: round(numb / a, 2))
-                
-            #     save_path = "{}/dataframes/{}.pickle".format(BASE_PATH.format(conf.model, conf.tag, augumentation.name), step )
-            #     print("Saving...")
-            #     df.to_pickle(save_path)

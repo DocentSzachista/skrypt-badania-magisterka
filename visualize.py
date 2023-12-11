@@ -2,14 +2,13 @@ from configuration import Config, BASE_PATH, prepare_counted_values_output_dir
 from visualization_layer.constants import LABELS_CIFAR_10
 import json 
 import pandas as pd
-from visualization_layer.plots import confussion
+
 import pathlib
 import matplotlib.pyplot as plt
 from matplotlib.figure import Figure
 from matplotlib.axes import Axes
 from visualization_layer.calculations import *
 import matplotlib.colors as mcolors
-from sklearn.preprocessing import StandardScaler
 from testing_layer.datasets import MixupDataset
 from torch.utils.data import DataLoader
 
@@ -21,48 +20,6 @@ from testing_layer.custom_transforms import NoiseTransform
 from torchvision.utils import save_image
 
 
-
-def make_calculations(loaded_config: Config):
-    """ Przeprowadź obliczenia odległości, i innych statystyk na podstawie konfiguracji. """
-    train = pd.read_pickle("./test_cifar10.pickle")
-    cosine =  CosineDistance()
-    mahalanobis = MahalanobisDistance()
-    euclidean = EuclidianDistance()
-    train['features'] = train['features'].apply(lambda x: (x - np.mean(x) ) /np.std(x))
-    mahalanobis.fit(train)
-    
-    for augumentation in loaded_config.augumentations:
-        base_dir = "{}/dataframes".format(BASE_PATH.format(loaded_config.model, loaded_config.tag, augumentation.name))
-        base_output_dir =  pathlib.Path("./counted_outputs/{}".format(BASE_PATH.format(loaded_config.model, loaded_config.tag, augumentation.name)))
-        iterator = augumentation.make_iterator()
-        acc_wide = { k: [] for k in LABELS_CIFAR_10.keys()}
-        print("Preparations for counting complete")
-        for step in iterator:
-            step = round(step, 2)
-            distances = {k: {"mahalanobis": [], "cosine": [], "euclidean": [], "original_label": [], "predicted_label": []} for k in range(10000)}
-            print("Counting step: {}".format(step))
-            file_path = base_dir + "/{}.pickle".format(step)
-            output_path_matrix = base_output_dir.joinpath("matrixes/{}".format(step))
-            df = pd.read_pickle(file_path)
-            df['features'] = df['features'].apply(lambda x: (x - np.mean(x) ) /np.std(x))
-            y_pred = df['predicted_label'].values
-            y_true = df['original_label'].values
-            confussion.make_noise_wide_statistic(y_true, y_pred, list(LABELS_CIFAR_10.keys()), acc_wide, filename=output_path_matrix)
-            dist_mahalanobis = mahalanobis.count_distance(df).T
-            for i in range(len(train.index)):
-                dist_cosine = cosine.count_distance(train.iloc[i]['features'], df.iloc[i]['features'])
-                euc = euclidean.count_distance(train.iloc[i]['features'], df.iloc[i]['features'])
-                distances[i]['cosine'].append(dist_cosine)
-                distances[i]['mahalanobis'].append(list(dist_mahalanobis[i]))
-                distances[i]['euclidean'].append(euc)
-                distances[i]['original_label'].append(df.iloc[i]['original_label'])
-                distances[i]['predicted_label'].append(df.iloc[i]['predicted_label'])
-            individual_calculations_dir = base_output_dir.joinpath("distances")            
-            pd.DataFrame.from_dict(distances, orient="index").to_pickle(individual_calculations_dir.joinpath("all-distances-step-{}.pickle".format(step)))
-        # with open(individual_calculations_dir.joinpath("noise_steps.json"), "w+") as file: 
-        #     json.dump(list(iterator), file)
-        with open(base_output_dir.joinpath("classes-accuracy.json"), "w+") as file: 
-            json.dump(acc_wide, file)
             
 
 
