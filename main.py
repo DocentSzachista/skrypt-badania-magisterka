@@ -55,7 +55,7 @@ def handle_mixup(augumentation: MixupAugumentation, dataset: CIFAR10, iterator: 
             to_save = test_model_with_data_loader(model, dataloader, step)
             df = pd.DataFrame(to_save, columns=conf.columns)
             df["noise_percent"] = df["noise_percent"].apply(lambda numb: round(numb / augumentation.max_size, 2))
-            save_path = "{}/dataframes/{}.pickle".format(BASE_PATH.format(conf.model, conf.tag, augumentation.name), step )
+            save_path = "{}/dataframes/mixup_to_{}/{}.pickle".format(BASE_PATH.format(conf.model, conf.tag, class_, augumentation.name), step )
             print("Saving...")
             df.to_pickle(save_path)
 

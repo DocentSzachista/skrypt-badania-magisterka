@@ -44,20 +44,35 @@ def prepare_save_directory(config : Config):
 
 def prepare_counted_values_output_dir(config: Config):
     for augumentation in config.augumentations:
-        path = config.count_base_dir.joinpath(BASE_PATH.format(config.model, config.tag, augumentation.name))
-        path.mkdir(parents=True, exist_ok=True)
-        path.joinpath("matrixes").mkdir(parents=False, exist_ok=True)
-        path.joinpath("distances").mkdir(parents=False, exist_ok=True)
+        if isinstance(augumentation, MixupAugumentation):
+            for class_ in augumentation.classes:
+                path = config.count_base_dir.joinpath(BASE_PATH.format(config.model, config.tag, augumentation.name).join("mixup_to_{}").format(class_))
+                path.mkdir(parents=True, exist_ok=True)
+                path.joinpath("matrixes").mkdir(parents=False, exist_ok=True)
+                path.joinpath("distances").mkdir(parents=False, exist_ok=True)
+        else: 
+            path = config.count_base_dir.joinpath(BASE_PATH.format(config.model, config.tag, augumentation.name))
+            path.mkdir(parents=True, exist_ok=True)
+            path.joinpath("matrixes").mkdir(parents=False, exist_ok=True)
+            path.joinpath("distances").mkdir(parents=False, exist_ok=True)    
     print("Finished creating dirs for counted_output")
     
 
 def prepare_visualization_output_dir(config: Config):
     for augumentation in config.augumentations:
-        path = config.visualization_base_dir.joinpath(BASE_PATH.format(config.model, config.tag, augumentation.name))
-        path.mkdir(parents=True, exist_ok=True)
-        path.joinpath("matrixes").mkdir(parents=False, exist_ok=True)
-        path.joinpath("distances").mkdir(parents=False, exist_ok=True)
-        path.joinpath("images").mkdir(parents=False, exist_ok=True)
+        if isinstance(augumentation, MixupAugumentation):
+            for class_ in augumentation.classes:
+                path = config.visualization_base_dir.joinpath(BASE_PATH.format(config.model, config.tag, augumentation.name).join("mixup_to_{}").format(class_))
+                path.mkdir(parents=True, exist_ok=True)
+                path.joinpath("matrixes").mkdir(parents=False, exist_ok=True)
+                path.joinpath("distances").mkdir(parents=False, exist_ok=True)
+                path.joinpath("images").mkdir(parents=False, exist_ok=True)
+        else: 
+            path = config.visualization_base_dir.joinpath(BASE_PATH.format(config.model, config.tag, augumentation.name))
+            path.mkdir(parents=True, exist_ok=True)
+            path.joinpath("matrixes").mkdir(parents=False, exist_ok=True)
+            path.joinpath("distances").mkdir(parents=False, exist_ok=True)
+            path.joinpath("images").mkdir(parents=False, exist_ok=True)
     print("Finished creating dirs for visualization")
     
     
