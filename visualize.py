@@ -22,18 +22,6 @@ from testing_layer.custom_transforms import NoiseTransform
 from torchvision.utils import save_image
 
 
-def make_line_plot(source_file_path: str, iterator: list, axs: Axes, plot_title: str):
-    with open(source_file_path, "r+") as file:
-        data = json.load(file)
-    for key, values in data.items():
-        axs.plot(iterator, values,  label=LABELS_CIFAR_10[int(key)])
-    axs.set_xlabel("Stopień zaszumienia")
-    axs.set_ylabel("Accuracy")
-    axs.set_title("Rodzaj ingerencji w obraz {}".format(plot_title))
-    axs.legend()
-    axs.grid()
-
-
 def make_confussion_matrix_plot(cf_matrix: np.ndarray, axs: Axes, plot_title: str, labels: list):
 
     df_cm = pd.DataFrame(
@@ -49,40 +37,15 @@ def make_confussion_matrix_plot(cf_matrix: np.ndarray, axs: Axes, plot_title: st
     )
 
 
-def make_statistics_per_image(augumentation, df: pd.DataFrame, iterator: list, base_path: pathlib.Path):
-    """Stwórz statystyki co pojedynczy obrazek."""
-    x_label = "Noise percentage"
-    y_label = "Distance"
-    aug_string = augumentation.name
-    for i, row in df.iterrows():
-        fig, axes = plt.subplots(1, 2, figsize=(10, 10))
-        fig.suptitle("Distance changes for image id: {} class of {}\nfrom{}".format(
-            i, LABELS_CIFAR_10[df.iloc[i]['original_label']]))
-        axes[0].set_title("Mahalanobis distance change")
-        axes[1].set_title("Cosine distance change")
-        axes[0].set_xlabel(x_label)
-        axes[0].set_ylabel(y_label)
-        axes[1].set_xlabel(x_label)
-        axes[1].set_ylabel(y_label)
-        converted_mahalanobis = np.asarray(row['mahalanobis'])
-        for sub_array, key in zip(converted_mahalanobis.T, list(LABELS_CIFAR_10.keys())):
-            axes[0].plot(round(100 * (iterator / 1024), 2), sub_array, label=LABELS_CIFAR_10[key])
-        axes[1].plot(row['iterator'], row['cosine'], label="distance from {}".format(aug_string))
-        axes[0].legend()
-        axes[1].legend()
-
-        fig.savefig(base_path.joinpath("id_{}_label_{}.png".format(i, LABELS_CIFAR_10[df.iloc[i].original_label])))
-
-
 def make_step_bar_plot(
         axis: list[Axes],
-        fig: Figure, distances: list, save_path: pathlib.Path, title: str, image_class: str):
+        fig: Figure, distances: list, save_path: pathlib.Path, title: str, image_class: str, labels: list):
     """
         Zapchaj dziura aby móc łatwiej przemieszczać się w kodzie.
     """
     y_label = "Distance"
     fig.autofmt_xdate(rotation=45)
-    axis[0].bar(list(LABELS_CIFAR_10.values()), distances[0], align="center", color=mcolors.TABLEAU_COLORS)
+    axis[0].bar(labels, distances[0], align="center", color=mcolors.TABLEAU_COLORS)
     axis[0].set_ylabel(y_label)
     axis[0].set_title("Mahalanobis distance")
     axis[1].set_ylim(bottom=0, top=1)
@@ -112,42 +75,19 @@ def make_visualization_proccess(
     template_plot_title = "{} distance for image_id: {} of class: {}"
 
     for augumentation in loaded_config.augumentations:
-        base_path_counted = pathlib.Path(
-            "./counted_outputs/{}".format(BASE_PATH.format(loaded_config.model, loaded_config.tag, augumentation.name)))
-        base_path_visualize = pathlib.Path(
-            "./visualizations/{}".format(BASE_PATH.format(loaded_config.model, loaded_config.tag, augumentation.name)))
+        base_path_counted = config.count_base_dir.joinpath(BASE_PATH.format(
+            loaded_config.model, loaded_config.tag, augumentation.name))
+
+        base_path_visualize = config.visualization_base_dir.joinpath(
+            BASE_PATH.format(loaded_config.model, loaded_config.tag, augumentation.name)
+        )
         base_path_visualize.mkdir(parents=True, exist_ok=True)
         iterator = augumentation.make_iterator()
-        # if matrix_related:
-        #     make_line_plot(base_path_counted.joinpath("classes-accuracy.json"), iterator, plot_ax, template_title_total_accuracy.format(augumentation.name))
-        #     plot_fig.savefig(base_path_visualize.joinpath("classes-accuracy.png"))
-        #     plot_ax.cla()
-        # plot_fig.clear()
-        noise_max_range = 1024 if augumentation.name == "noise" else 100
-        # debug_func(iterator, list(LABELS_CIFAR_10.values()), template_title_total_accuracy.format(augumentation.name),
-        #             base_path_counted, base_path_visualize.joinpath("accuracies_plot.png"), noise_max_range )
         distances = {k: {"mahalanobis": [], "cosine": [], "original_label": [], "predicted_label": []}
                      for k in range(10000)}
-        mean_distances = {
-            k: {"mahalanobis": [],
-                "cosine": [],
-                "original_label": [],
-                "predicted_label": []} for k in range(10)}
         for step in iterator:
             print(f"In step {step}")
-            noise_max_range = 1024 if augumentation.name == "noise" else 100
-            step_percentage = round(100 * step / noise_max_range, 2)
-            if matrix_related:
-                matrix_fig, matrix_ax = plt.subplots(1, 1, figsize=(10, 10))
-                path_to_matrix = base_path_counted.joinpath("matrixes/{}.npy".format(round(step, 2)))
-                make_confussion_matrix_plot(
-                    path_to_matrix, matrix_ax,
-                    template_title.format(augumentation.name, step_percentage),
-                    labels=list(LABELS_CIFAR_10.values())
-                )
-                matrix_fig.savefig(base_path_visualize.joinpath("confussion_matrix-step{}.png".format(step)))
-                # matrix_ax.cla()
-
+            step_percentage = round(100 * step / augumentation.max_size, 2)
             dist_path = base_path_counted.joinpath("distances")
             visul_path = base_path_visualize.joinpath("distances")
             visul_path.mkdir(exist_ok=True)
@@ -170,14 +110,11 @@ def make_visualization_proccess(
                             df.iloc[i]['mahalanobis'][0],
                             df.iloc[i]['cosine'][0],
                             df.iloc[i]['euclidean'][0]
-                        ], save_path, super_title, image_class
+                        ], save_path, super_title, image_class, loaded_config.dataset_labels
                     )
                     distances[i]['mahalanobis'].append(df.iloc[i]['mahalanobis'])
                     distances[i]['cosine'].append(df.iloc[i]['cosine'][0])
 
-            # distances[i]['euclidean'].extend(df.iloc[i]['euclidean'])
-            # distances[i]['original_label'].append(df.iloc[i]['original_label'][0])
-            # distances[i]['predicted_label'].append(df.iloc[i]['predicted_label'][0])
         x_axis = np.round(100*iterator / noise_max_range, 2)
         if individual_images:
             for k in distances.keys():
@@ -214,43 +151,23 @@ def make_visualization_proccess(
                 # np.load(path_to_matrix)
 
 
-def make_overall_dist_plot_per_image(
-        ax: Axes, fig: Figure, title: str, x_axis: list, y_axis: np.ndarray, save_path: str, label: str | list):
-
-    ax.plot(x_axis, y_axis, label=LABELS_CIFAR_10.values())
-    # template_plot_title.format("Mahalanobis", k, LABELS_CIFAR_10[image_class_id])
-    ax.set_title(title)
-    ax.set_xlabel("percentage image augumentation")
-    ax.set_ylabel("Distance")
-    ax.grid()
-    ax.legend()
-    # save_path = base_path_visualize.joinpath("distances/class-{}-{}/{}".format(image_class_id, image_class, k))
-    # save_path.mkdir(parents=True, exist_ok=True)
-    # save_path.joinpath("mahalanobis-dist.png")
-    # plot_fig.savefig(save_path)
-    # # break
-    # plot_ax.cla()
-
-
 def generate_step_images(conf: Config):
     transform = A.Compose([
         ToTensorV2()
     ])
 
-    cifar = CIFAR10("./datasets", train=False,  transform=lambda x: transform(image=np.array(x))["image"].float()/255.0)
-    cat_class_indices = [idx for idx, label in enumerate(cifar.targets) if label == 3]
+    cifar = CIFAR10("./datasets", train=False, download=True, transform=lambda x: transform(image=np.array(x))["image"].float()/255.0)
+    # cat_class_indices = [idx for idx, label in enumerate(cifar.targets) if label == 3]
     path = pathlib.Path("visualizations")
     for augumentation in conf.augumentations:
         save_path = pathlib.Path(
             "./visualizations/{}".format(BASE_PATH.format(conf.model, conf.tag, augumentation.name)))
         save_path = save_path.joinpath("images")
         save_path.mkdir(exist_ok=True)
-        formatted_path = BASE_PATH.format(conf.model, conf.tag, augumentation.name)
         print("current augumentation {}".format(augumentation.name))
         iterator = augumentation.make_iterator()
-        noise_max_range = 1024 if augumentation.name == "noise" else 100
         for step in iterator:
-            step_percentage = round(100 * step / noise_max_range, 2)
+            step_percentage = round(100 * step / augumentation.max_size, 2)
             print("current step {}".format(step))
             if isinstance(augumentation, MixupAugumentation):
                 dataset_step = MixupDataset(cifar, cat_class_indices, step,
@@ -260,7 +177,7 @@ def generate_step_images(conf: Config):
                 transforms = A.Compose([
                     NoiseTransform(
                         number_of_pixels=step, shuffled_indexes=augumentation.shuffled_indexes,
-                        mask=augumentation.mask),
+                        mask=augumentation.mask, image_len=conf.image_dim[1]),
                     ToTensorV2()])
                 cifar.transform = lambda x: transforms(image=np.array(x))["image"].float()/255.0
                 dataloader = DataLoader(cifar, batch_size=1, shuffle=False, drop_last=False)
@@ -276,10 +193,12 @@ def make_matrix_plots(loaded_config: Config, labels: list):
     """Tworzy wykresy macierzy pomyłek oraz wykres zmianny accuracy dla danych klas"""
     template_title = "Confussion matrix for augumentation {}, augumentation_percentage: {}"
     for augumentation in loaded_config.augumentations:
-        base_path_counted = pathlib.Path(
-            "./counted_outputs/{}".format(BASE_PATH.format(loaded_config.model, loaded_config.tag, augumentation.name)))
-        base_path_visualize = pathlib.Path(
-            "./visualizations/{}".format(BASE_PATH.format(loaded_config.model, loaded_config.tag, augumentation.name)))
+        base_path_counted = config.count_base_dir.joinpath(BASE_PATH.format(
+            loaded_config.model, loaded_config.tag, augumentation.name))
+
+        base_path_visualize = config.visualization_base_dir.joinpath(
+            BASE_PATH.format(loaded_config.model, loaded_config.tag, augumentation.name)
+        )
         base_path_visualize.mkdir(parents=True, exist_ok=True)
         iterator = augumentation.make_iterator()
         storage = []
@@ -294,7 +213,7 @@ def make_matrix_plots(loaded_config: Config, labels: list):
                 cf_matrix,
                 matrix_ax,
                 template_title.format(augumentation.name, step_percentage),
-                labels=list(LABELS_CIFAR_10.values())
+                labels=loaded_config.dataset_labels
             )
             matrix_fig.savefig(base_path_visualize.joinpath("confussion_matrix-step{}.png".format(step)))
 
@@ -314,8 +233,6 @@ def make_matrix_plots(loaded_config: Config, labels: list):
         fig.savefig(base_path_visualize.joinpath("accuracies_plot.png"))
 
 
-
-
 def make_average_plots(loaded_config: Config, labels: list):
     """Tworzy wykresy średnich odległości i liczby sąsiadów w zależności od klasy"""
     def prepare_axis(ax: plt.Axes, x_axis: list, y_axis: np.ndarray, title: str, x_label: str, y_label: str):
@@ -331,10 +248,13 @@ def make_average_plots(loaded_config: Config, labels: list):
     neigh_label = "number of neightbours"
 
     for augumentation in loaded_config.augumentations:
-        base_path_counted = pathlib.Path(
-            "./counted_outputs/{}".format(BASE_PATH.format(loaded_config.model, loaded_config.tag, augumentation.name)))
-        base_path_visualize = pathlib.Path(
-            "./visualizations/{}".format(BASE_PATH.format(loaded_config.model, loaded_config.tag, augumentation.name)))
+        base_path_counted = config.count_base_dir.joinpath(BASE_PATH.format(
+            loaded_config.model, loaded_config.tag, augumentation.name))
+
+        base_path_visualize = config.visualization_base_dir.joinpath(
+            BASE_PATH.format(loaded_config.model, loaded_config.tag, augumentation.name)
+        )
+
         base_path_visualize.mkdir(parents=True, exist_ok=True)
         iterator = augumentation.make_iterator()
         mean_distances = {k: {"mahalanobis": [], "cosine": [], "euclidean": [], "neighbours": []} for k in range(10)}
@@ -388,7 +308,7 @@ def make_average_plots(loaded_config: Config, labels: list):
 
             plot_fig, plot_ax = plt.subplots(1, 1, figsize=(10, 10))
             plot_fig.suptitle(
-                "Average number of neighbours for images labeled: {} per percentage {} augumentation".format(
+                "Average number of neighbours for images labeled: {} per percentage\n {} augumentation".format(
                     labels[class_],
                     augumentation.name))
             line = prepare_axis(
@@ -406,5 +326,6 @@ if __name__ == "__main__":
     config = Config(obj)
     prepare_counted_values_output_dir(config)
     sn.set_theme()
-    # make_average_plots(config, list(LABELS_CIFAR_10.values()))
-    make_matrix_plots(config, list(LABELS_CIFAR_10))
+    # make_average_plots(config, config.dataset_labels)
+    # make_matrix_plots(config, config.dataset_labels)
+    generate_step_images(config)

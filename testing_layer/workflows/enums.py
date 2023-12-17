@@ -25,3 +25,4 @@ class SupportedAugumentations(Enum):
 
 class SupportedDatasets(Enum):
     CIFAR = "cifar_10"
+    IMAGENET = "imagenet"

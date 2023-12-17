@@ -4,7 +4,7 @@ import torch
 def create_and_shuffle_indexes(matrix_shape: tuple):
     np.random.seed(0)
     indexes = [
-        i * 32 + j for i in range(matrix_shape[0]) for j in range(matrix_shape[1])
+        i * 32 + j for i in range(matrix_shape[1]) for j in range(matrix_shape[2])
     ]
     np.random.shuffle(indexes)
     return indexes
@@ -33,10 +33,9 @@ class NoiseAugumentation(BaseAugumentation):
         self.mask = generate_mask(list(reversed(image_dim)))
         self.shuffled_indexes = create_and_shuffle_indexes(image_dim)
         self.max_size = image_dim[1] * image_dim[2]
-        
+
 class MixupAugumentation(BaseAugumentation):
     def __init__(self, config: dict, image_dim: list) -> None:
         super().__init__(config)
         self.max_size = 100
         self.classes = config["picked_classes"]
-
