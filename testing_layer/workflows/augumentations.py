@@ -38,5 +38,5 @@ class MixupAugumentation(BaseAugumentation):
     def __init__(self, config: dict, image_dim: list) -> None:
         super().__init__(config)
         self.max_size = 100
-        self.classes = config["picked_classes"]
+        self.class_ = config["picked_class"]
 

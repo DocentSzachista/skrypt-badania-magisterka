@@ -34,7 +34,11 @@ class Config:
 
 def prepare_save_directory(config : Config):
     for augumentation in config.augumentations:
-        path = pathlib.Path(
+        if isinstance(augumentation, MixupAugumentation):
+            path = pathlib.Path(
+            BASE_PATH.format(config.model, config.tag, f"{augumentation.name}-{augumentation.class_}"))
+        else: 
+            path = pathlib.Path(
             BASE_PATH.format(config.model, config.tag, augumentation.name))
         path.mkdir(parents=True, exist_ok=True)
         path.joinpath("dataframes").mkdir(parents=False, exist_ok=True)

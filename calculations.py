@@ -44,8 +44,8 @@ def handle_mixup(augumentation: MixupAugumentation,  loaded_config: Config, k_ne
             }
             individual_calculations_dir = base_output_dir.joinpath("distances")            
             pd.DataFrame.from_dict(distances, orient="index").to_pickle(individual_calculations_dir.joinpath("all-distances-step-{}.pickle".format(step)))
-        with open(base_output_dir.joinpath("classes-accuracy.json"), "w+") as file: 
-            json.dump(acc_wide, file)
+        # with open(base_output_dir.joinpath("classes-accuracy.json"), "w+") as file: 
+        #     json.dump(acc_wide, file)
 
 def handle_noise(augumentation: NoiseAugumentation,  loaded_config: Config, k_nearest_neighbours: NearestNeightboursCount, 
                  cosine: CosineDistance, mahalanobis: MahalanobisDistance, euclidean: EuclidianDistance):

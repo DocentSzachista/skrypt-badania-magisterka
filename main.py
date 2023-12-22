@@ -45,19 +45,19 @@ def test_model_with_data_loader(model, data_loader: DataLoader, mask_intensity: 
 
 def handle_mixup(augumentation: MixupAugumentation, dataset: CIFAR10, iterator: list):
     """Handle mixup augumentation"""
-    for class_ in augumentation.classes:
-        chosen_indices = [idx for idx, label in enumerate(cifar.targets) if label == class_]
-
-        print("Performing mixup for {}".format(class_))
-        for step in iterator: 
-            dataset_step = MixupDataset(dataset, chosen_indices, step, path="{}/images/class-{}/{}".format(formatted_path, class_ , step) )
-            dataloader =  DataLoader(dataset_step, batch_size=50, shuffle=False, drop_last=False)
-            to_save = test_model_with_data_loader(model, dataloader, step)
-            df = pd.DataFrame(to_save, columns=conf.columns)
-            df["noise_percent"] = df["noise_percent"].apply(lambda numb: round(numb / augumentation.max_size, 2))
-            save_path = "{}/dataframes/mixup_to_{}/{}.pickle".format(BASE_PATH.format(conf.model, conf.tag, class_, augumentation.name), step )
-            print("Saving...")
-            df.to_pickle(save_path)
+    chosen_indices = [idx for idx, label in enumerate(cifar.targets) if label == augumentation.class_]
+    simple_path =  BASE_PATH.format(conf.model, conf.tag, f"{augumentation.name}-{augumentation.class_}")
+    print("Performing mixup for {}".format(augumentation.class_))
+    for step in iterator: 
+        dataset_step = MixupDataset(dataset, chosen_indices, step, path="{}/images/class-{}/{}".format(formatted_path, augumentation.class_ , step), should_save_processing=False )
+        dataloader =  DataLoader(dataset_step, batch_size=50, shuffle=False, drop_last=False)
+        to_save = test_model_with_data_loader(model, dataloader, step)
+        df = pd.DataFrame(to_save, columns=conf.columns)
+        df["noise_percent"] = df["noise_percent"].apply(lambda numb: round(numb / augumentation.max_size, 2))
+        
+        save_path = "{}/dataframes/{}.pickle".format(simple_path, round(step, 2) )
+        print("Saving...")
+        df.to_pickle(save_path)
 
 
 def handle_noise(augumentation: NoiseAugumentation, dataset: CIFAR10, iterator: list):
@@ -73,7 +73,7 @@ def handle_noise(augumentation: NoiseAugumentation, dataset: CIFAR10, iterator: 
                     
         df = pd.DataFrame(to_save, columns=conf.columns)
         df["noise_percent"] = df["noise_percent"].apply(lambda numb: round(numb / augumentation.max_size, 2))
-        save_path = "{}/dataframes/{}.pickle".format(BASE_PATH.format(conf.model, conf.tag, augumentation.name), step )
+        save_path = "{}/dataframes/{}.pickle".format(BASE_PATH.format(conf.model, conf.tag, augumentation.name), round(step, 2) )
         print("Saving...")
         df.to_pickle(save_path)
 
