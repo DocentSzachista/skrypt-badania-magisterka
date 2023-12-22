@@ -1,8 +1,11 @@
 from testing_layer.workflows.augumentations import * 
 from testing_layer.workflows.enums import *
 import pathlib
-
-BASE_PATH = "{}-{}/{}"
+from testing_layer.workflows.utils import BASE_PATH 
+# BASE_PATH = "{}-{}/{}"
+from torchvision.datasets import CIFAR10, ImageNet
+import albumentations as A
+from albumentations.pytorch import ToTensorV2
 
 class Config:
     
@@ -10,16 +13,26 @@ class Config:
         SupportedAugumentations.MIXUP: MixupAugumentation,
         SupportedAugumentations.NOISE: NoiseAugumentation
     }
+    
+    supported_datasets = {
+        SupportedDatasets.CIFAR: CIFAR10,
+        SupportedDatasets.IMAGENET: ImageNet
+    }
+    
+    transform = A.Compose([
+            ToTensorV2()
+    ])
 
     def __init__(self, json_config: dict) -> None:
         self.model = json_config.get("model")
         self.tag = json_config.get("tag", "base")
         self.image_dim = json_config.get("image_dim", [3, 32, 32])
         self.augumentations = [
-            self.supported_augumentations.get(SupportedAugumentations(augumentation["name"]))(augumentation, self.image_dim)
+            self.supported_augumentations[SupportedAugumentations(augumentation["name"])](augumentation, self.image_dim)
             for augumentation in json_config.get("augumentations")
-        ]
-        self.dataset = SupportedDatasets(json_config.get("dataset"))
+        ] 
+        self.dataset = self.supported_datasets.get( SupportedDatasets(json_config.get("dataset")))(
+            root="./datasets", train=False, transforms=lambda x: self.transform(image=np.array(x))["image"].float()/255.0)
         self.model_filename = json_config.get("model_location")
         self.g_drive_hash = json_config.get("model_g_drive")
         self.save_preprocessing = json_config.get("save_preprocessing", False)
@@ -34,15 +47,9 @@ class Config:
 
 def prepare_save_directory(config : Config):
     for augumentation in config.augumentations:
-        if isinstance(augumentation, MixupAugumentation):
-            path = pathlib.Path(
-            BASE_PATH.format(config.model, config.tag, f"{augumentation.name}-{augumentation.class_}"))
-        else: 
-            path = pathlib.Path(
-            BASE_PATH.format(config.model, config.tag, augumentation.name))
-        path.mkdir(parents=True, exist_ok=True)
-        path.joinpath("dataframes").mkdir(parents=False, exist_ok=True)
-        path.joinpath("images").mkdir(parents=False, exist_ok=True)
+        augumentation.template_path.mkdir(parents=True, exist_ok=True)
+        augumentation.template_path.joinpath("dataframes").mkdir(parents=False, exist_ok=True)
+        augumentation.template_path.joinpath("images").mkdir(parents=False, exist_ok=True)
     print("Finished creating directories for model outputs")
 
 
