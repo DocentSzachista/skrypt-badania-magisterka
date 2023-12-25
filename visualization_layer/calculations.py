@@ -1,20 +1,21 @@
 import numpy as np
 import pandas as pd
-from numpy.linalg import norm
 
 from sklearn.covariance import EmpiricalCovariance
 from sklearn.metrics.pairwise import cosine_distances
 from sklearn.metrics.pairwise import euclidean_distances
 from sklearn.neighbors import NearestNeighbors
 
+
 class Metrics:
     """Abstract class that for counting metrics"""
     name = "abstract"
     y_lim = (0, 10)
+
     def __init__(self) -> None:
         self.dist = {}
         self.classes = {}
-        
+
     def count_distance(self, features_origin: np.ndarray, features_finish: np.ndarray):
         raise NotImplementedError("This is abstract method, its not gonna be implemented")
 
@@ -29,13 +30,12 @@ class EuclidianDistance(Metrics):
         self.classes = np.sort(df.original_label.unique())
         for index in self.classes:
             x = df[df['original_label'] == index]['features'].tolist()
-            self.dist[index] = x 
-            
+            self.dist[index] = x
 
     def count_distance(self, df: pd.DataFrame):
         """Licz średnią odległość euklidesową od zbioru punktów dla zbioru x"""
         x = df['features'].to_numpy()
-        x = np.stack(x).squeeze() #.tolist()
+        x = np.stack(x).squeeze()  # .tolist()
         res = []
         for row in x:
             row_dist = []
@@ -54,12 +54,12 @@ class CosineDistance(Metrics):
 
     name = "Cosine"
     y_lim = (0, 1)
+
     def fit(self, df: pd.DataFrame):
         self.classes = np.sort(df.original_label.unique())
         for index in self.classes:
             x = df[df['original_label'] == index]['features'].tolist()
-            self.dist[index] = x 
-            
+            self.dist[index] = x
 
     def count_distance(self, df: pd.DataFrame):
         """ Oblicz średnią odległość cosinusową od zestawu punktów"""
@@ -76,7 +76,6 @@ class CosineDistance(Metrics):
         print(res.shape)
         print(res[0])
         return res
-
 
 
 class MahalanobisDistance:
@@ -104,23 +103,24 @@ class MahalanobisDistance:
 
 
 class NearestNeightboursCount:
-    
-    name="nearestneightbours"
+
+    name = "nearestneightbours"
+
     def __init__(self, n_neighbors: int) -> None:
         self.classes = {}
         self.classes_indicises = {}
         self.knn = NearestNeighbors(n_neighbors=n_neighbors)
-    
+
     def fit(self, df: pd.DataFrame):
         self.classes = np.sort(df.original_label.unique())
-        
+
         for index in self.classes:
             x = df[df['original_label'] == index].index
-            self.classes_indicises[index] = x 
+            self.classes_indicises[index] = x
         self.knn.fit(
             X=df['features'].to_list()
         )
-    
+
     def count_neighbours(self, df: pd.DataFrame):
         """Podlicz liczbę sąsiadów a następnie podlicz z jakiej klas są."""
         x = df['features'].to_numpy()
@@ -129,13 +129,18 @@ class NearestNeightboursCount:
         to_return_list = []
         for neightbor in neighbours:
             to_return = {
-                k: len(list(set(neightbor) & set(self.classes_indicises[k]))) for k in self.classes    
+                k: len(list(set(neightbor) & set(self.classes_indicises[k]))) for k in self.classes
             }
             to_return_list.append(to_return)
         return to_return_list
 
+
 if __name__ == "__main__":
     df = pd.read_pickle("./cifar_10.pickle")
-    
+
     mahal = MahalanobisDistance()
     mahal.fit(df)
+    cosine = CosineDistance()
+    cosine.fit(df)
+
+    print(cosine.count_distance(df)[0])

@@ -1,2 +1,5 @@
 *.pickle
 __pycache__/
+visualizations/
+counted_outputs/
+datasets/
