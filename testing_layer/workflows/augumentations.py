@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-from utils import BASE_PATH
+from .utils import BASE_PATH
 import pathlib
 def create_and_shuffle_indexes(matrix_shape: tuple):
     np.random.seed(0)
@@ -38,7 +38,7 @@ class NoiseAugumentation(BaseAugumentation):
         self.max_size = image_dim[1] * image_dim[2]
         self.template_path = pathlib.Path(
             BASE_PATH.format(self.model_name, self.tag, self.name))
-        
+
 class MixupAugumentation(BaseAugumentation):
     def __init__(self, config: dict, image_dim: list, tag: str, model_name: str) -> None:
         super().__init__(config, tag, model_name)
@@ -46,5 +46,3 @@ class MixupAugumentation(BaseAugumentation):
         self.class_ = config["picked_class"]
         self.template_path =  pathlib.Path(
             BASE_PATH.format(self.model_name, self.tag, f"{self.name}-{self.class_}"))
-        
-

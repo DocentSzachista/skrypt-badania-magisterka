@@ -1,5 +1,5 @@
 
-from configuration import Config, prepare_save_directory, BASE_PATH
+from testing_layer.configuration import Config, prepare_save_directory
 from testing_layer.resnet_cifar_10 import prepare_resnet
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
@@ -87,7 +87,7 @@ if __name__ == "__main__":
         obj = json.load(file)
     conf = Config(obj)
     prepare_save_directory(conf)
-
+    print(torch.cuda.is_available())
     model = prepare_resnet(conf.model_filename)
     set_workstation("cuda:0")
     with torch.no_grad():
@@ -95,7 +95,7 @@ if __name__ == "__main__":
         model.cuda()
 
         for augumentation in conf.augumentations:
-            formatted_path = BASE_PATH.format(conf.model, conf.tag, augumentation.name)
+            formatted_path = augumentation.template_path
             print("current augumentation {}".format(augumentation.name))
             iterator = augumentation.make_iterator()
             if isinstance(augumentation, MixupAugumentation):

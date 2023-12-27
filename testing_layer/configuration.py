@@ -1,13 +1,12 @@
 from testing_layer.workflows.augumentations import *
 from testing_layer.workflows.enums import *
 import pathlib
-from testing_layer.workflows.utils import BASE_PATH
 from torchvision.datasets import CIFAR10, ImageNet
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from visualization_layer.constants import *
-import os
 import gdown
+
 
 class Config:
 
@@ -35,18 +34,17 @@ class Config:
         self.tag = json_config.get("tag", "base")
         self.image_dim = json_config.get("image_dim", [3, 32, 32])
         self.augumentations = [
-            self.supported_augumentations[SupportedAugumentations(augumentation["name"])](augumentation, self.image_dim)
-            for augumentation in json_config.get("augumentations")
-        ]
+            self.supported_augumentations[SupportedAugumentations(augumentation["name"])]
+            (augumentation, self.image_dim, tag=self.tag, model_name=self.model)
+            for augumentation in json_config.get("augumentations")]
         self.dataset = self.supported_datasets.get(SupportedDatasets(json_config.get("dataset")))(
-            root="./datasets", train=False, transforms=lambda x: self.transform(image=np.array(x))["image"].float()/255.0)
+            root="./datasets", train=False, transform=lambda x: self.transform(image=np.array(x))["image"].float()/255.0)
         self.labels = self.dataset_labels.get(SupportedDatasets(json_config.get("dataset")))
 
         self.model_filename = json_config.get("model_location")
         self.g_drive_hash = json_config.get("model_g_drive", None)
         if self.g_drive_hash is not None:
-            self.model_filename =f"./{gdown.download(id=self.g_drive_hash)}"
-
+            self.model_filename = f"./{gdown.download(id=self.g_drive_hash)}"
 
         self.save_preprocessing = json_config.get("save_preprocessing", False)
         self.color_channels = ColorChannels.count_channels(

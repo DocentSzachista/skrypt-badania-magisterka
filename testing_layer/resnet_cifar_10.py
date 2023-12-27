@@ -1,9 +1,7 @@
-import numpy as np
 import torch
-import torchvision
 from .workflows.enums import *
-from ..configuration import Config
-from torchvision.models import resnet152, ResNet152_Weights
+from .configuration import Config
+from torchvision.models import resnet152, ResNet152_Weights, ResNet
 
 class Normalize(torch.nn.Module):
     def __init__(self, mean, std):
@@ -22,8 +20,8 @@ def change_model_with_normalization(model, mean, std):
     return torch.nn.Sequential(norm_layer, model)
 
 
-def prepare_resnet( resnet_location: str, num_classes=10) -> torchvision.models.ResNet:
-    model = torchvision.models.resnet152(num_classes=num_classes)
+def prepare_resnet( resnet_location: str, num_classes=10) -> ResNet:
+    model = resnet152(num_classes=num_classes)
 
     model.conv1 = torch.nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
     model.maxpool = torch.nn.Identity()
@@ -48,7 +46,7 @@ def prepare_resnet( resnet_location: str, num_classes=10) -> torchvision.models.
 
 def load_resnet_model(config: Config):
     if config.dataset == SupportedDatasets.CIFAR:
-        model = torchvision.models.resnet152(num_classes=10)
+        model = resnet152(num_classes=10)
         model.conv1 = torch.nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False)
         model.maxpool = torch.nn.Identity()
 
@@ -66,7 +64,7 @@ def load_resnet_model(config: Config):
         # model.cuda()
         # model.eval()
     elif config.dataset == SupportedDatasets.IMAGENET:
-        model = torchvision.models.resnet152(num_classes=1000, weights=ResNet152_Weights.IMAGENET1K_V1)
+        model = resnet152(num_classes=1000, weights=ResNet152_Weights.IMAGENET1K_V1)
         model = change_model_with_normalization(
             model, (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
         )
