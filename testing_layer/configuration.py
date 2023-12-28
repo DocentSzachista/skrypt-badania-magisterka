@@ -6,7 +6,7 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from visualization_layer.constants import *
 import gdown
-
+import os 
 
 class Config:
 
@@ -41,9 +41,10 @@ class Config:
             root="./datasets", train=False, transform=lambda x: self.transform(image=np.array(x))["image"].float()/255.0)
         self.labels = self.dataset_labels.get(SupportedDatasets(json_config.get("dataset")))
 
-        self.model_filename = json_config.get("model_location")
+        self.model_filename = json_config.get("model_location", None)
         self.g_drive_hash = json_config.get("model_g_drive", None)
-        if self.g_drive_hash is not None:
+
+        if self.g_drive_hash is not None and not os.path.isfile(self.model_filename):
             self.model_filename = f"./{gdown.download(id=self.g_drive_hash)}"
 
         self.save_preprocessing = json_config.get("save_preprocessing", False)
