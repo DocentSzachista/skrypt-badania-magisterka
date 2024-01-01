@@ -1,6 +1,6 @@
 import seaborn as sn
 import numpy as np
-from configuration import Config, BASE_PATH, prepare_counted_values_output_dir
+from testing_layer.configuration import Config, BASE_PATH, prepare_counted_values_output_dir
 from visualization_layer.constants import LABELS_CIFAR_10
 import json
 import pandas as pd
@@ -25,7 +25,7 @@ from torchvision.utils import save_image
 def make_confussion_matrix_plot(cf_matrix: np.ndarray, axs: Axes, plot_title: str, labels: list):
 
     df_cm = pd.DataFrame(
-        cf_matrix / np.sum(cf_matrix, axis=1)[:, None],
+        cf_matrix, #/ np.sum(cf_matrix, axis=1)[:, None],
         index=[i for i in labels],
         columns=[i for i in labels]
     )
@@ -75,11 +75,10 @@ def make_visualization_proccess(
     template_plot_title = "{} distance for image_id: {} of class: {}"
 
     for augumentation in loaded_config.augumentations:
-        base_path_counted = config.count_base_dir.joinpath(BASE_PATH.format(
-            loaded_config.model, loaded_config.tag, augumentation.name))
+        base_path_counted = config.count_base_dir.joinpath(augumentation.template_path)
 
         base_path_visualize = config.visualization_base_dir.joinpath(
-            BASE_PATH.format(loaded_config.model, loaded_config.tag, augumentation.name)
+           augumentation.template_path
         )
         base_path_visualize.mkdir(parents=True, exist_ok=True)
         iterator = augumentation.make_iterator()
@@ -162,7 +161,7 @@ def generate_step_images(conf: Config):
     path = pathlib.Path("visualizations")
     for augumentation in conf.augumentations:
         save_path = pathlib.Path(
-            "./visualizations/{}".format(BASE_PATH.format(conf.model, conf.tag, augumentation.name)))
+            "./visualizations/{}".format(augumentation.template_path))
         save_path = save_path.joinpath("images")
         save_path.mkdir(exist_ok=True)
         print("current augumentation {}".format(augumentation.name))
@@ -207,20 +206,22 @@ def make_matrix_plots(loaded_config: Config, labels: list):
         storage = []
         x_axis = np.round(100*iterator / augumentation.max_size, 2)
         for step in iterator:
+            step = round(step, 2)
             print(f"In step {step}")
             step_percentage = round(100 * step / augumentation.max_size, 2)
             matrix_fig, matrix_ax = plt.subplots(1, 1, figsize=(10, 10))
             path_to_matrix = base_path_counted.joinpath("matrixes/{}.npy".format(round(step, 2)))
             cf_matrix = np.load(path_to_matrix)
+
             make_confussion_matrix_plot(
                 cf_matrix,
                 matrix_ax,
                 template_title.format(augumentation.name, step_percentage),
-                labels=loaded_config.dataset_labels
+                labels=labels
             )
             matrix_fig.savefig(base_path_visualize.joinpath("confussion_matrix-step{}.png".format(step)))
 
-            arr = np.empty(shape=(10))
+            arr = np.empty(shape=(len(loaded_config.labels)))
             for i in range(cf_matrix.shape[0]):
                 arr[i] = cf_matrix[i, i] / np.sum(cf_matrix[i, :])
             storage.append(arr)
@@ -234,28 +235,43 @@ def make_matrix_plots(loaded_config: Config, labels: list):
         ax.legend()
         ax.grid()
         fig.savefig(base_path_visualize.joinpath("accuracies_plot.png"))
+        
+        max_ =  np.argmax(storage < 0.5, axis=0)
+        return max_
 
 
-def make_average_plots(loaded_config: Config, labels: list):
+def make_average_plots(loaded_config: Config, labels: list, below_rate_indicises: np.ndarray):
     """Tworzy wykresy średnich odległości i liczby sąsiadów w zależności od klasy"""
-    def prepare_axis(ax: plt.Axes, x_axis: list, y_axis: np.ndarray, title: str, x_label: str, y_label: str):
+    def prepare_axis(ax: plt.Axes, x_axis: list, y_axis: np.ndarray, title: str, x_label: str, y_label: str, is_below: list | None = None):
         ax.set_xlabel(x_label)
         ax.set_ylabel(y_label)
         ax.set_title(title)
+        # axes= None 
+        if is_below is not None:
+            # is_below.remove(0)
+            for i in below_rate_indicises[below_rate_indicises != 0]:
+                return ax.plot(
+                    x_axis, y_axis, '-D', markevery=np.asanyarray([i])
+                )
+                
+                if i == below_rate_indicises.size - 1:
+                    return ax.plot(
+                    x_axis, y_axis, '-D', markevery=np.asanyarray([i])
+                    )
         return ax.plot(
-            x_axis, y_axis
+            x_axis, y_axis,
         )
+
 
     x_label = "percentage image augumentation"
     dist_label = "Distance"
     neigh_label = "number of neightbours"
 
     for augumentation in loaded_config.augumentations:
-        base_path_counted = config.count_base_dir.joinpath(BASE_PATH.format(
-            loaded_config.model, loaded_config.tag, augumentation.name))
+        base_path_counted = config.count_base_dir.joinpath(augumentation.template_path)
 
         base_path_visualize = config.visualization_base_dir.joinpath(
-            BASE_PATH.format(loaded_config.model, loaded_config.tag, augumentation.name)
+           augumentation.template_path
         )
 
         base_path_visualize.mkdir(parents=True, exist_ok=True)
@@ -302,8 +318,8 @@ def make_average_plots(loaded_config: Config, labels: list):
             conv_neight = np.vstack(values['neighbours'])
             l1 = prepare_axis(plot_ax[0], x_axis, conv_mahal, "mahalanobis",
                               x_label, dist_label,)
-            prepare_axis(plot_ax[1], x_axis, conv_cosine, "cosine", x_label, dist_label,)
-            prepare_axis(plot_ax[2], x_axis, conv_euclid, "euclidean", x_label, dist_label,)
+            prepare_axis(plot_ax[1], x_axis, conv_cosine, "cosine", x_label, dist_label, below_rate_indicises)
+            prepare_axis(plot_ax[2], x_axis, conv_euclid, "euclidean", x_label, dist_label, below_rate_indicises)
             plot_fig.legend(
                 tuple(l1), tuple(labels),  loc='outside right upper'
             )
@@ -315,13 +331,14 @@ def make_average_plots(loaded_config: Config, labels: list):
                     labels[class_],
                     augumentation.name))
             line = prepare_axis(
-                plot_ax, x_axis, conv_neight, "", x_label, neigh_label
+                plot_ax, x_axis, conv_neight, "", x_label, neigh_label, below_rate_indicises
             )
             plot_fig.legend(
                 tuple(line), tuple(labels),  loc='outside right upper'
             )
             plot_fig.savefig(neightbours_visul_path.joinpath("mean-neighbours-{}.png".format(labels[class_])))
-
+            plt.close(plot_fig)
+        break
 
 if __name__ == "__main__":
     with open("./config.json", "r") as file:
@@ -329,6 +346,8 @@ if __name__ == "__main__":
     config = Config(obj)
     prepare_counted_values_output_dir(config)
     sn.set_theme()
-    # make_average_plots(config, config.dataset_labels)
-    # make_matrix_plots(config, config.dataset_labels)
-    generate_step_images(config)
+    indicise = make_matrix_plots(config, config.labels)
+    # print(indicise)
+    make_average_plots(config, config.labels, indicise)
+
+    # generate_step_images(config)
