@@ -3,7 +3,10 @@ from enum import Enum
 
 class SupportedModels(Enum):
     RESNET = "resnet"
-
+    EFFICIENTNET = "efficientnet"
+    CONVNEXT = "convnext"
+    VIT = "vit"
+    VGG = "vgg"
 
 class ColorChannels(Enum):
     R = 0
@@ -26,3 +29,4 @@ class SupportedAugumentations(Enum):
 class SupportedDatasets(Enum):
     CIFAR = "cifar_10"
     IMAGENET = "imagenet"
+

@@ -1,0 +1,20 @@
+{
+    "tag": "noise",
+    "models": ["resnet", "efficientnet", "convnext", "vit", "vgg"],
+    "augumentations": [{
+            "name": "noise",
+            "start_point": 0,
+            "finish_point": 65536,
+            "step": 64
+        }
+    ],
+    "batch_size": 50,
+    "num_workers": 2,
+    "dataset": "imagenet",
+    "dataset_path": "R:/Pobrane/imagenet-object-localization-challenge(1)",
+    "image_dim": [3, 256, 256],
+    "chosen_color_chanels": "RGB",
+    "save_preprocessing": false,
+    "neightbours_number": 100
+
+}

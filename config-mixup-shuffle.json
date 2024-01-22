@@ -2,7 +2,7 @@
     "tag": "mixups",
     "model": "shufflenet",
     "augumentations": [
- {
+        {
             "name": "mixup",
             "start_point": 0,
             "finish_point": 1,
