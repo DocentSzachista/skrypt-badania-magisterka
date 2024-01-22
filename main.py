@@ -14,33 +14,45 @@ import pandas as pd
 from testing_layer.workflows.cifar_10 import get_features
 import json
 from testing_layer.custom_transforms import NoiseTransform
-
-
+from testing_layer.shufflenet import prepare_shufflenet, network_features
+from torchvision.models import ResNet
 def converter(tensor): return tensor.detach().cpu().numpy()
 
 
 def test_model_with_data_loader(model, data_loader: DataLoader, mask_intensity: int):
+    global network_features
     storage = []
 
     ind = 0
-    for _, (inputs, targets) in enumerate(data_loader):
+    for batch, (inputs, targets) in enumerate(data_loader):
         inputs, targets = inputs.to("cuda:0"), targets.to("cuda:0")
         logits = model(inputs)
         _, predicted = torch.max(logits, dim=1)
         predicted = converter(predicted)
         logits = converter(logits)
-        features = get_features(model._modules['1'], inputs)
+        if isinstance(model, ResNet):
+            features = converter(get_features(model._modules['1'], inputs))
+        else:
+            features = network_features[batch]
+            # print("Pokazuj batcha")
+            # print(len(features.shape))
+            # print(logits.shape[0])
         for index in range(logits.shape[0]):
             storage.append([
                 ind, converter(targets[index]).item(),
                 predicted[index],
                 mask_intensity,
                 logits[index],
-                converter(features[index]),
+                features[index],
                 100*mask_intensity
             ])
             ind += 1
-
+        # if not isinstance(model, ResNet):
+        #     network_features.clear()
+        #     print("czyść")
+        #     print(len(network_features))
+    # print(len(network_features))
+    network_features.clear()
     return storage
 
 
@@ -83,12 +95,15 @@ def handle_noise(augumentation: NoiseAugumentation, dataset: CIFAR10 | ImageNet,
 
 
 if __name__ == "__main__":
-    with open("./config.json", "r") as file:
+    with open("./config-mixup.json", "r") as file:
         obj = json.load(file)
     conf = Config(obj)
     prepare_save_directory(conf)
     print(torch.cuda.is_available())
-    model = prepare_resnet(conf.model_filename)
+    if conf.model == "resnet":
+        model = prepare_resnet(conf.model_filename)
+    else:
+        model = prepare_shufflenet()
     set_workstation("cuda:0")
     with torch.no_grad():
         model.eval()
@@ -102,4 +117,7 @@ if __name__ == "__main__":
                 handle_mixup(augumentation, conf.dataset, iterator)
             elif isinstance(augumentation, NoiseAugumentation):
                 handle_noise(augumentation, conf.dataset, iterator)
-            # TODO: dodawanie transformacji w postaci obrotu obrazka
+
+
+    # import shutil
+    # shutil.make_archive("model", "zip", conf.model_base_dir)

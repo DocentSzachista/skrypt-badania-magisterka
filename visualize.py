@@ -1,6 +1,6 @@
 import seaborn as sn
 import numpy as np
-from testing_layer.configuration import Config, BASE_PATH, prepare_counted_values_output_dir
+from testing_layer.configuration import Config, BASE_PATH, prepare_counted_values_output_dir, prepare_visualization_output_dir
 from visualization_layer.constants import LABELS_CIFAR_10
 import json
 import pandas as pd
@@ -45,16 +45,16 @@ def make_step_bar_plot(
     """
     y_label = "Distance"
     fig.autofmt_xdate(rotation=45)
-    axis[0].bar(labels, distances[0], align="center", color=mcolors.TABLEAU_COLORS)
+    axis[0].bar(labels, distances[0], align="center", color=mcolors.TABLEAU_COLORS,)
     axis[0].set_ylabel(y_label)
     axis[0].set_title("Mahalanobis distance")
     axis[1].set_ylim(bottom=0, top=1)
     axis[1].set_ylabel(y_label)
-    axis[1].bar(image_class, distances[1], align="center")
+    axis[1].bar(labels, distances[1], align="center", color=mcolors.TABLEAU_COLORS)
     axis[1].set_title("Cosine distance")
 
     fig.suptitle(title)
-    axis[2].bar(image_class, distances[2], align="center")
+    axis[2].bar(labels, distances[2], align="center", color=mcolors.TABLEAU_COLORS)
     axis[2].set_title("Euclidean distance")
     axis[2].set_ylabel(y_label)
 
@@ -64,14 +64,12 @@ def make_step_bar_plot(
     axis[2].cla()
 
 
-def make_visualization_proccess(
-        loaded_config: Config, matrix_related=False, individual_images=True, make_average_plots=True):
+def make_individual_stats(
+        loaded_config: Config, individual_images=True, ):
     # TODO: zoptymalizuj, wyeleminuj powtórzenia, spraw aby ścieżki nie trzeba było co chwila budować
     # matrix_fig, matrix_ax = plt.subplots(1,1, figsize=(10, 10))
     plot_fig, plot_ax = plt.subplots(1, 1, figsize=(12, 12))
     bar_plot_fig, bar_plot_ax = plt.subplots(1, 3, figsize=(12, 12))
-    template_title = "Confussion matrix for augumentation {}, augumentation_percentage: {}"
-    template_title_total_accuracy = "Total class accuracies for augumentation: {}"
     template_plot_title = "{} distance for image_id: {} of class: {}"
 
     for augumentation in loaded_config.augumentations:
@@ -82,8 +80,8 @@ def make_visualization_proccess(
         )
         base_path_visualize.mkdir(parents=True, exist_ok=True)
         iterator = augumentation.make_iterator()
-        distances = {k: {"mahalanobis": [], "cosine": [], "original_label": [], "predicted_label": []}
-                     for k in range(10000)}
+        distances = {k: {"mahalanobis": [], "cosine": [], "original_label": [], "euclidean":[], "predicted_label": []}
+                     for k in range(len(loaded_config.dataset))}
         for step in iterator:
             print(f"In step {step}")
             step_percentage = round(100 * step / augumentation.max_size, 2)
@@ -94,36 +92,36 @@ def make_visualization_proccess(
             df = pd.read_pickle(dist_path.joinpath("all-distances-step-{}.pickle".format(round(step, 2))))
 
             for i in range(len(df.index)):
-                if individual_images:
-                    image_class = LABELS_CIFAR_10[df.iloc[i]['original_label'][0]]
-                    image_class_predicted = LABELS_CIFAR_10[df.iloc[i]['predicted_label'][0]]
-                    save_path_bar_plot = visul_path.joinpath(
-                        "class-{}-{}/{}".format(df.iloc[i]['original_label'][0], image_class, i))
-                    save_path_bar_plot.mkdir(parents=True, exist_ok=True)
-                    # save_path_bar_plot.joinpath(f"{i}").mkdir(exist_ok=True)
-                    save_path = save_path_bar_plot.joinpath("barplot-percentage-{}.png".format(step))
-                    super_title = "Image id: {} class origin: {} class predicted: {} \n augumentation %: {}%".format(
-                        i, image_class, image_class_predicted, step_percentage)
-                    make_step_bar_plot(
-                        bar_plot_ax, bar_plot_fig, [
-                            df.iloc[i]['mahalanobis'][0],
-                            df.iloc[i]['cosine'][0],
-                            df.iloc[i]['euclidean'][0]
-                        ], save_path, super_title, image_class, loaded_config.dataset_labels
-                    )
-                    distances[i]['mahalanobis'].append(df.iloc[i]['mahalanobis'])
-                    distances[i]['cosine'].append(df.iloc[i]['cosine'][0])
+                image_class = loaded_config.labels[df.iloc[i]['original_label']]
+                image_class_predicted = loaded_config.labels[df.iloc[i]['predicted_label']]
+                save_path_bar_plot = visul_path.joinpath(
+                    "class-{}-{}/{}".format(df.iloc[i]['original_label'], image_class, i))
+                save_path_bar_plot.mkdir(parents=True, exist_ok=True)
+                # save_path_bar_plot.joinpath(f"{i}").mkdir(exist_ok=True)
+                save_path = save_path_bar_plot.joinpath("barplot-percentage-{}.png".format(step))
+                super_title = "Image id: {} class origin: {} class predicted: {} \n augumentation %: {}%".format(
+                    i, image_class, image_class_predicted, step_percentage)
+                make_step_bar_plot(
+                    bar_plot_ax, bar_plot_fig, [
+                        df.iloc[i]['mahalanobis'],
+                        df.iloc[i]['cosine'],
+                        df.iloc[i]['euclidean']
+                    ], save_path, super_title, image_class, loaded_config.labels
+                )
+                distances[i]['mahalanobis'].append(df.iloc[i]['mahalanobis'])
+                distances[i]['cosine'].append(df.iloc[i]['cosine'])
+                distances[i]['euclidean'].append(df.iloc[i]['euclidean'])
 
-        x_axis = np.round(100*iterator / noise_max_range, 2)
+        x_axis = np.round(100*iterator / augumentation.max_size, 2)
         if individual_images:
             for k in distances.keys():
                 np_array = np.asarray(distances[k]['mahalanobis'])
                 # print(np_array.shape)
                 image_class_id = df.iloc[k]['original_label'][0]
-                image_class = LABELS_CIFAR_10[image_class_id]
+                image_class = loaded_config.labels[image_class_id]
                 # for i in range(np_array.shape[1]):
-                plot_ax.plot(x_axis, np_array[:, 0], label=LABELS_CIFAR_10.values())
-                plot_ax.set_title(template_plot_title.format("Mahalanobis", k, LABELS_CIFAR_10[image_class_id]),)
+                plot_ax.plot(x_axis, np_array[:, 0], label=loaded_config.labels)
+                plot_ax.set_title(template_plot_title.format("Mahalanobis", k, loaded_config.labels[image_class_id]),)
                 plot_ax.set_xlabel("percentage image augumentation")
                 plot_ax.set_ylabel("Distance")
                 plot_ax.grid()
@@ -142,12 +140,15 @@ def make_visualization_proccess(
                 plot_ax.grid()
                 plot_fig.savefig(save_path.joinpath("cosine-dist.png"))
                 plot_ax.cla()
-                # euklidesowa
-                # 336
-                # step_path = base_path_visualize.joinpath(step)
-                # step_path.mkdir(parents=False, exist_ok=True)
 
-                # np.load(path_to_matrix)
+                # euklidesowa
+                plot_ax.plot(x_axis, distances[k]['euclidean'], label=image_class)
+                plot_ax.set_title(template_plot_title.format("Euclidean", k, image_class),)
+                plot_ax.set_xlabel(f"percentage image augumentation of type: {augumentation.name} ")
+                plot_ax.set_ylabel("Distance")
+                plot_ax.grid()
+                plot_fig.savefig(save_path.joinpath("euclidean-dist.png"))
+                plot_ax.cla()
 
 
 def generate_step_images(conf: Config):
@@ -155,9 +156,6 @@ def generate_step_images(conf: Config):
         ToTensorV2()
     ])
 
-    # cifar = CIFAR10("./datasets", train=False, download=True,
-    # transform=lambda x: transform(image=np.array(x))["image"].float()/255.0)
-    # cat_class_indices = [idx for idx, label in enumerate(cifar.targets) if label == 3]
     path = pathlib.Path("visualizations")
     for augumentation in conf.augumentations:
         save_path = pathlib.Path(
@@ -195,6 +193,7 @@ def generate_step_images(conf: Config):
 def make_matrix_plots(loaded_config: Config, labels: list):
     """Tworzy wykresy macierzy pomyłek oraz wykres zmianny accuracy dla danych klas"""
     template_title = "Confussion matrix for augumentation {}, augumentation_percentage: {}"
+    thresholds = {}
     for augumentation in loaded_config.augumentations:
         base_path_counted = config.count_base_dir.joinpath(augumentation.template_path)
         base_path_visualize = config.visualization_base_dir.joinpath(
@@ -235,28 +234,32 @@ def make_matrix_plots(loaded_config: Config, labels: list):
         ax.legend()
         ax.grid()
         fig.savefig(base_path_visualize.joinpath("accuracies_plot.png"))
-        
-        max_ =  np.argmax(storage < 0.5, axis=0)
-        return max_
+
+        thresholds[augumentation.template_path] = np.argmax(storage < 0.5, axis=0)
+
+    return thresholds
 
 
-def make_average_plots(loaded_config: Config, labels: list, below_rate_indicises: np.ndarray):
+def make_average_plots(loaded_config: Config, labels: list, below_rate_indicises: dict | None = None):
     """Tworzy wykresy średnich odległości i liczby sąsiadów w zależności od klasy"""
-    def prepare_axis(ax: plt.Axes, x_axis: list, y_axis: np.ndarray, title: str, x_label: str, y_label: str, is_below: list | None = None):
+    def prepare_axis(ax: plt.Axes, x_axis: list, y_axis: np.ndarray,
+                     title: str, x_label: str, y_label: str, is_below: np.ndarray | None = None):
         ax.set_xlabel(x_label)
         ax.set_ylabel(y_label)
         ax.set_title(title)
-        # axes= None 
+        ax.grid()
+        # axes= None
         if is_below is not None:
             # is_below.remove(0)
-            for i in below_rate_indicises[below_rate_indicises != 0]:
-                return ax.plot(
-                    x_axis, y_axis, '-D', markevery=np.asanyarray([i])
+            below = is_below[is_below != 0]
+            for i in range(below.shape[0]):
+                ax.plot(
+                    x_axis, y_axis, '-D', markevery=np.asanyarray([below[i]])
                 )
-                
-                if i == below_rate_indicises.size - 1:
+
+                if i == below.size - 1:
                     return ax.plot(
-                    x_axis, y_axis, '-D', markevery=np.asanyarray([i])
+                    x_axis, y_axis, '-D', markevery=np.asanyarray([below[i]])
                     )
         return ax.plot(
             x_axis, y_axis,
@@ -269,7 +272,10 @@ def make_average_plots(loaded_config: Config, labels: list, below_rate_indicises
 
     for augumentation in loaded_config.augumentations:
         base_path_counted = config.count_base_dir.joinpath(augumentation.template_path)
-
+        if below_rate_indicises is not None:
+            below_rate_indicises = below_rate_indicises[augumentation.template_path]
+        else:
+            below_rate_indicises = None
         base_path_visualize = config.visualization_base_dir.joinpath(
            augumentation.template_path
         )
@@ -277,6 +283,8 @@ def make_average_plots(loaded_config: Config, labels: list, below_rate_indicises
         base_path_visualize.mkdir(parents=True, exist_ok=True)
         iterator = augumentation.make_iterator()
         mean_distances = {k: {"mahalanobis": [], "cosine": [], "euclidean": [], "neighbours": []} for k in range(10)}
+        mean_distance_by_original_class = {k: {"mahalanobis": [], "cosine": [], "euclidean": [], "neighbours": []} for k in range(10)}
+
         x_axis = np.round(100*iterator / augumentation.max_size, 2)
 
         dist_path = base_path_counted.joinpath("distances")
@@ -284,6 +292,8 @@ def make_average_plots(loaded_config: Config, labels: list, below_rate_indicises
         distance_visul_path.mkdir(exist_ok=True)
         neightbours_visul_path = base_path_visualize.joinpath("neightbours")
         neightbours_visul_path.mkdir(exist_ok=True)
+
+
 
         # Część gdzie podliczane są średnie odległości wobec klasy obrazków oraz średnia liczba
         # sąsiadów dla danego stopnia zaszumienia
@@ -294,18 +304,80 @@ def make_average_plots(loaded_config: Config, labels: list, below_rate_indicises
             by_state = df.groupby("original_label")
 
             for state, frame in by_state:
+                mean_mahalanobis = frame.mahalanobis.mean()
+                mean_euclidean =  frame.euclidean.mean()
+                mean_cosine = frame.cosine.mean()
+                mean_neighbours = frame.neighbours.apply(pd.Series).mean().values
+
                 mean_distances[state]['mahalanobis'].append(
-                    frame.mahalanobis.mean()
+                    mean_mahalanobis
                 )
+
                 mean_distances[state]['euclidean'].append(
-                    frame.euclidean.mean()
+                    mean_euclidean
                 )
                 mean_distances[state]['cosine'].append(
-                    frame.cosine.mean()
+                    mean_cosine
                 )
                 mean_distances[state]['neighbours'].append(
-                    frame.neighbours.apply(pd.Series).mean().values
+                    mean_neighbours
                 )
+                # Podlicz tak by zobaczyć jak tylko odległości od oryginalnych klas się zmieniają.
+
+                mean_distance_by_original_class[state]['mahalanobis'].append(mean_mahalanobis[state])
+                mean_distance_by_original_class[state]['cosine'].append(mean_cosine[state])
+                mean_distance_by_original_class[state]['euclidean'].append(mean_euclidean[state])
+                mean_distance_by_original_class[state]['neighbours'].append(mean_euclidean[state])
+
+
+        # values = mean_distance_by_original_class.items()
+        mean_neigh_fig, neigh_ax  = plt.subplots( figsize=(10, 10))
+
+        plot_figure, plot_axis = plt.subplots(1, 3, figsize= (18, 10))
+        mean_neigh_fig.suptitle("Zmiana liczby sąsiadów dla średniego obrazu z każdej z klas od \n ich oryginalnej przestrzeni z wykorzystaniem augumentacji {}".format(augumentation.name))
+        plot_figure.suptitle("Zmiana odległości średniego obrazu z każdej z klas od \n ich oryginalnej przestrzeni z wykorzystaniem augumentacji {}".format(augumentation.name))
+        for class_, values in mean_distance_by_original_class.items():
+            # print(values)
+            plot_axis[0].plot(
+            x_axis, values['mahalanobis'], label=labels[class_]
+            )
+            plot_axis[0].set_title("Mahalanobis")
+
+            plot_axis[1].plot(
+            x_axis, values['cosine'], label=labels[class_]
+            )
+            plot_axis[1].set_title("Cosinusowa")
+
+            plot_axis[2].plot(
+            x_axis, values['euclidean'], label=labels[class_]
+            )
+            plot_axis[2].set_title("Euklidesowa")
+
+
+            neigh_ax.plot(
+            x_axis, values['neighbours'], label=labels[class_]
+            )
+
+        handles, labels = plot_figure.gca().get_legend_handles_labels()
+        by_label = dict(zip(labels, handles))
+        plot_figure.legend(by_label.values(), by_label.keys() ,loc="center right")
+        plot_figure.supylabel(dist_label)
+        plot_figure.supxlabel(x_label)
+        mean_neigh_fig.legend()
+        neigh_ax.set_xlabel(x_label)
+        neigh_ax.set_ylabel("number of neighbours")
+        mean_neigh_fig.savefig(distance_visul_path.joinpath("mean-neightbours-all.png"))
+
+
+
+        plot_figure.savefig(distance_visul_path.joinpath("mean-distances-all.png"))
+
+        plt.close(plot_figure)
+        ### Miejsce gdzie generuję liczbę sąsiadów zmieniającch się w zależności
+
+
+        # return
+
         # część gdzie podliczane są tworzone wykresy
         for class_, values in mean_distances.items():
             plot_fig, plot_ax = plt.subplots(1, 3, figsize=(15, 10))
@@ -317,14 +389,17 @@ def make_average_plots(loaded_config: Config, labels: list, below_rate_indicises
             conv_euclid = np.vstack(values['euclidean'])
             conv_neight = np.vstack(values['neighbours'])
             l1 = prepare_axis(plot_ax[0], x_axis, conv_mahal, "mahalanobis",
-                              x_label, dist_label,)
+                              x_label, dist_label, below_rate_indicises)
             prepare_axis(plot_ax[1], x_axis, conv_cosine, "cosine", x_label, dist_label, below_rate_indicises)
             prepare_axis(plot_ax[2], x_axis, conv_euclid, "euclidean", x_label, dist_label, below_rate_indicises)
             plot_fig.legend(
                 tuple(l1), tuple(labels),  loc='outside right upper'
             )
+            plot_ax[0].grid()
+            plot_ax[1].grid()
+            plot_ax[2].grid()
             plot_fig.savefig(distance_visul_path.joinpath("mean-distances-{}.png".format(labels[class_])))
-
+            plt.close(plot_fig)
             plot_fig, plot_ax = plt.subplots(1, 1, figsize=(10, 10))
             plot_fig.suptitle(
                 "Average number of neighbours for images labeled: {} per percentage\n {} augumentation".format(
@@ -333,21 +408,28 @@ def make_average_plots(loaded_config: Config, labels: list, below_rate_indicises
             line = prepare_axis(
                 plot_ax, x_axis, conv_neight, "", x_label, neigh_label, below_rate_indicises
             )
+            plot_ax.grid()
             plot_fig.legend(
                 tuple(line), tuple(labels),  loc='outside right upper'
             )
             plot_fig.savefig(neightbours_visul_path.joinpath("mean-neighbours-{}.png".format(labels[class_])))
             plt.close(plot_fig)
-        break
+
 
 if __name__ == "__main__":
-    with open("./config.json", "r") as file:
-        obj = json.load(file)
-    config = Config(obj)
-    prepare_counted_values_output_dir(config)
-    sn.set_theme()
-    indicise = make_matrix_plots(config, config.labels)
-    # print(indicise)
-    make_average_plots(config, config.labels, indicise)
+    filenames = ["config-noise.json", "config-noise-shuffle.json", "config-mixup.json", "config-mixup-shuffle.json"]
 
+    for filename in filenames:
+        with open(f"./{filename}", "r") as file:
+            obj = json.load(file)
+        config = Config(obj)
+        prepare_visualization_output_dir(config)
+        sn.set_theme()
+        indicise = make_matrix_plots(config, config.labels)
+        # print(indicise)
+        make_average_plots(config, config.labels)
+    # make_individual_stats(config)
     # generate_step_images(config)
+
+    # import shutil
+    # shutil.make_archive("visualizations", "zip", config.visualization_base_dir)

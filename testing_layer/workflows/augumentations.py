@@ -5,7 +5,7 @@ import pathlib
 def create_and_shuffle_indexes(matrix_shape: tuple):
     np.random.seed(0)
     indexes = [
-        i * 32 + j for i in range(matrix_shape[0]) for j in range(matrix_shape[1])
+        i * 32 + j for i in range(matrix_shape[1]) for j in range(matrix_shape[2])
     ]
     np.random.shuffle(indexes)
     return indexes

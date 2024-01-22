@@ -1,0 +1,17 @@
+{
+    "tag": "noise",
+    "model": "shufflenet",
+    "augumentations": [{
+            "name": "noise",
+            "start_point": 0,
+            "finish_point": 574,
+            "step": 64
+        }
+    ],
+    "dataset": "cifar_10",
+    "image_dim": [3, 32, 32],
+    "chosen_color_chanels": "RGB",
+    "save_preprocessing": true,
+    "neightbours_number": 100
+
+}

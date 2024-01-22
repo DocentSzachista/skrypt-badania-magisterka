@@ -12,7 +12,8 @@ def min_max_scaling(x: np.ndarray): return  (x - np.min(x)) / (np.max(x) - np.mi
 
 def make_calculations(loaded_config: Config):
     """ Przeprowadź obliczenia odległości, i innych statystyk na podstawie konfiguracji. """
-    train = pd.read_pickle("./cifar_10.pickle")
+    print(loaded_config.chosen_train_set)
+    train = pd.read_pickle(loaded_config.chosen_train_set)
     cosine = CosineDistance()
     mahalanobis = MahalanobisDistance()
     euclidean = EuclidianDistance()
@@ -69,8 +70,10 @@ def make_calculations(loaded_config: Config):
 
 
 if __name__ == "__main__":
-    with open("./config.json", "r") as file:
+    with open("./config-noise-shuffle.json", "r") as file:
         obj = json.load(file)
     conf = Config(obj)
     prepare_counted_values_output_dir(conf)
     make_calculations(conf)
+    # import shutil
+    # shutil.make_archive("counted_outputs", "zip", conf.count_base_dir)

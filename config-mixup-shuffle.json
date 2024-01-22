@@ -1,9 +1,8 @@
 {
     "tag": "mixups",
-    "model": "resnet",
-    "model_location": "./ResNet152_CIFAR10.ckpt",
-    "model_g_drive": "1YSs2XjzvAM_0ZbttiznTDo7GUdCX1erK",
-    "augumentations": [{
+    "model": "shufflenet",
+    "augumentations": [
+ {
             "name": "mixup",
             "start_point": 0,
             "finish_point": 1,

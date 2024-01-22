@@ -36,6 +36,7 @@ def get_features(model, data):
             return data
 
 
+
 def retrieve_images_from_dataloader(preprocess, image_ids: list):
     test_set = torchvision.datasets.CIFAR10(
         root="./", train=False, download=True, transform=ToTensorV2()
