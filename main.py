@@ -67,7 +67,7 @@ def test_model_with_data_loader(model, data_loader: DataLoader, mask_intensity: 
     return storage
 
 
-def handle_mixup(augumentation: MixupAugumentation, dataset: CIFAR10 | ImageNet, iterator: list, batch_size : int, num_workers: int):
+def handle_mixup(augumentation: MixupAugumentation, dataset: CIFAR10 | ImageNet, iterator: list, batch_size : int):
     """Handle mixup augumentation"""
     chosen_indices = [idx for idx, label in enumerate(dataset.targets) if label == augumentation.class_]
     print("Performing mixup for {}".format(augumentation.class_))
@@ -76,8 +76,8 @@ def handle_mixup(augumentation: MixupAugumentation, dataset: CIFAR10 | ImageNet,
             dataset, chosen_indices, step, path="{}/images/class-{}/{}".format(
                 augumentation.template_path, augumentation.class_, step),
             should_save_processing=False)
-        dataloader = DataLoader(dataset_step, batch_size=batch_size, shuffle=False, drop_last=False, num_workers=num_workers)
-        to_save = test_model_with_data_loader(model, dataloader, step)
+        dataloader = DataLoader(dataset_step, batch_size=batch_size, shuffle=False, drop_last=False)
+        to_save = test_model_with_data_loader(model, dataloader, step, augumentation)
         df = pd.DataFrame(to_save, columns=conf.columns)
         df["noise_percent"] = df["noise_percent"].apply(lambda numb: round(numb / augumentation.max_size, 2))
 
@@ -95,7 +95,7 @@ def handle_noise(transformations, augumentation: NoiseAugumentation, dataset: CI
             NoiseTransform(
                 number_of_pixels=step, shuffled_indexes=augumentation.shuffled_indexes,
                 mask=augumentation.mask)])
-        dataset.transform = transformations
+        # dataset.transform = transformations
         dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=False)
         to_save = test_model_with_data_loader(model, dataloader, step, augumentation)
 

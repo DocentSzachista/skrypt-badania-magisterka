@@ -38,15 +38,24 @@ class Config:
         self.tag = json_config.get("tag", "base")
         self.chosen_train_set = "./cifar_10.pickle" if self.model == 'resnet' else "./datasets/shufflenet_train_set.pickle"
         self.image_dim = json_config.get("image_dim", [3, 32, 32])
+        self.labels = self.dataset_labels.get(SupportedDatasets(json_config.get("dataset")))
         self.augumentations = [
             self.supported_augumentations[SupportedAugumentations(augumentation["name"])]
             (augumentation, self.image_dim, tag=self.tag, model_name=self.model)
             for augumentation in json_config.get("augumentations")]
+        template_mixup = self.augumentations.pop()
+        print(self.augumentations)
+        if isinstance(template_mixup, MixupAugumentation):
+            for label in range(len(self.labels)):
+                temp = copy.deepcopy(template_mixup)
+                temp.class_ = label
+                self.augumentations.append(temp)
+        print(len(self.augumentations))
+
         self.dataset = ImageNetKaggle(root=json_config['dataset_path'], split="val", transform=lambda x: self.transform(image=np.array(x))["image"].float()/255.0)
 
         # self.dataset = self.supported_datasets.get(SupportedDatasets(json_config.get("dataset")))(
         #     root=json_config['dataset_path'], split="val", train=False, download=True, transform=lambda x: self.transform(image=np.array(x))["image"].float()/255.0)
-        self.labels = self.dataset_labels.get(SupportedDatasets(json_config.get("dataset")))
 
         self.model_filename = json_config.get("model_location", None)
         self.g_drive_hash = json_config.get("model_g_drive", None)
