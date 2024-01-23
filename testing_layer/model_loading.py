@@ -25,7 +25,7 @@ def load_model(chosen_model: SupportedModels):
     weights = supported_weights[chosen_model]
 
     model = supported_models[chosen_model](weights=weights)
-    print(model)
+    # print(model)
     return model, weights.transforms()
 
 
@@ -39,17 +39,18 @@ def setup_a_hook(model, chosen_model: SupportedModels):
     if chosen_model == SupportedModels.CONVNEXT:
         return model.classifier[-1].register_forward_hook(collect_features)
     elif chosen_model == SupportedModels.EFFICIENTNET:
-        return model.features[-1].register_forward_hook(collect_features)
+        return model.classifier[-1].register_forward_hook(collect_features)
     elif chosen_model == SupportedModels.VGG:
         return model.classifier[-1].register_forward_hook(collect_features)
     elif chosen_model == SupportedModels.RESNET:
         return model.fc.register_forward_hook(collect_features)
     elif chosen_model == SupportedModels.VIT:
-        return model.s
+        return model.heads.register_forward_hook(collect_features)
 
 
-def remove_hook(model):
-    pass
+def remove_hook(hook):
+    hook.remove()
+
 
 
 

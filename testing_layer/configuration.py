@@ -5,6 +5,8 @@ from torchvision.datasets import CIFAR10, ImageNet
 import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from visualization_layer.constants import *
+from .datasets import ImageNetKaggle
+
 import gdown
 import os
 
@@ -40,8 +42,10 @@ class Config:
             self.supported_augumentations[SupportedAugumentations(augumentation["name"])]
             (augumentation, self.image_dim, tag=self.tag, model_name=self.model)
             for augumentation in json_config.get("augumentations")]
+        self.dataset = ImageNetKaggle(root=json_config['dataset_path'], split="val", transform=lambda x: self.transform(image=np.array(x))["image"].float()/255.0)
+
         # self.dataset = self.supported_datasets.get(SupportedDatasets(json_config.get("dataset")))(
-        #     root="./datasets", train=False, download=True, transform=lambda x: self.transform(image=np.array(x))["image"].float()/255.0)
+        #     root=json_config['dataset_path'], split="val", train=False, download=True, transform=lambda x: self.transform(image=np.array(x))["image"].float()/255.0)
         self.labels = self.dataset_labels.get(SupportedDatasets(json_config.get("dataset")))
 
         self.model_filename = json_config.get("model_location", None)
