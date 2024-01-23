@@ -52,7 +52,7 @@ class Config:
                 self.augumentations.append(temp)
         print(len(self.augumentations))
 
-        self.dataset = ImageNetKaggle(root=json_config['dataset_path'], split="val", transform=lambda x: self.transform(image=np.array(x))["image"].float()/255.0)
+        # self.dataset = ImageNetKaggle(root=json_config['dataset_path'], split="val", transform=lambda x: self.transform(image=np.array(x))["image"].float()/255.0)
 
         # self.dataset = self.supported_datasets.get(SupportedDatasets(json_config.get("dataset")))(
         #     root=json_config['dataset_path'], split="val", train=False, download=True, transform=lambda x: self.transform(image=np.array(x))["image"].float()/255.0)

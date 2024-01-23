@@ -30,9 +30,6 @@ def test_model_with_data_loader(model, data_loader: DataLoader, mask_intensity: 
 
     ind = 0
     for batch, (inputs, targets) in enumerate(data_loader):
-        # print(type(inputs))
-        print(inputs[0])
-        print(mask_intensity)
         if isinstance(augumentation, NoiseAugumentation):
             new_inputs = []
             for image in inputs:
@@ -67,15 +64,17 @@ def test_model_with_data_loader(model, data_loader: DataLoader, mask_intensity: 
     return storage
 
 
-def handle_mixup(augumentation: MixupAugumentation, dataset: CIFAR10 | ImageNet, iterator: list, batch_size : int):
+def handle_mixup(augumentation: MixupAugumentation, dataset: ImageNetKaggle, iterator: list, batch_size : int):
     """Handle mixup augumentation"""
     chosen_indices = [idx for idx, label in enumerate(dataset.targets) if label == augumentation.class_]
+    dataset.chosen_class_indices = chosen_indices
     print("Performing mixup for {}".format(augumentation.class_))
     for step in iterator:
         dataset_step = MixupDataset(
             dataset, chosen_indices, step, path="{}/images/class-{}/{}".format(
                 augumentation.template_path, augumentation.class_, step),
             should_save_processing=False)
+        # dataset.alpha = step
         dataloader = DataLoader(dataset_step, batch_size=batch_size, shuffle=False, drop_last=False)
         to_save = test_model_with_data_loader(model, dataloader, step, augumentation)
         df = pd.DataFrame(to_save, columns=conf.columns)
@@ -119,7 +118,7 @@ if __name__ == "__main__":
         dataset = ImageNetKaggle(root=obj['dataset_path'], split="val", transform=transformations)
 
         hook = setup_a_hook(model, tested_model)
-        print(transformations)
+        # print(transformations)
         # break
         with torch.no_grad():
             model.eval()
@@ -132,7 +131,7 @@ if __name__ == "__main__":
                 print("current augumentation {}".format(augumentation.name))
                 iterator = augumentation.make_iterator()
                 if isinstance(augumentation, MixupAugumentation):
-                    handle_mixup(augumentation, conf.dataset, iterator, conf.batch_size)
+                    handle_mixup(augumentation, dataset, iterator, conf.batch_size)
                 elif isinstance(augumentation, NoiseAugumentation):
                     handle_noise(transformations, augumentation, dataset, iterator, conf.batch_size)
         remove_hook(hook)

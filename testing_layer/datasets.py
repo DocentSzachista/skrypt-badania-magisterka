@@ -46,7 +46,8 @@ class MixupDataset(Dataset):
 
 
 class ImageNetKaggle(Dataset):
-    def __init__(self, root, split, transform=None):
+    def __init__(self, root, split, transform=None, class_id = -1):
+        self.class_id = class_id
         self.samples = []
         self.targets = []
         self.transform = transform
@@ -75,6 +76,7 @@ class ImageNetKaggle(Dataset):
                 sample_path = os.path.join(samples_dir, entry)
                 self.samples.append(sample_path)
                 self.targets.append(target)
+
     def __len__(self):
         return len(self.samples)
 
