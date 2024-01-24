@@ -5,7 +5,6 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from torchvision.datasets import CIFAR10, ImageNet
 from testing_layer.workflows.augumentations import *
-import numpy as np
 from testing_layer.datasets import MixupDataset, ImageNetKaggle
 from torch.utils.data import DataLoader
 from testing_layer.workflows.utils import set_workstation
@@ -15,10 +14,8 @@ from testing_layer.workflows.cifar_10 import get_features
 import json
 from testing_layer.custom_transforms import NoiseTransform
 from testing_layer.model_loading import *
-from torchvision.models import ResNet
 from testing_layer.model_loading import load_model
 from testing_layer.workflows.enums import SupportedModels
-import torchvision
 from testing_layer.workflows.augumentations import apply_noise
 
 def converter(tensor): return tensor.detach().cpu().numpy()

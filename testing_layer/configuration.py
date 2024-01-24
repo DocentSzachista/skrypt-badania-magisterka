@@ -7,7 +7,6 @@ from albumentations.pytorch import ToTensorV2
 from visualization_layer.constants import *
 from .datasets import ImageNetKaggle
 
-import gdown
 import os
 
 class Config:
@@ -34,7 +33,6 @@ class Config:
     def __init__(self, json_config: dict) -> None:
         self.model = json_config['model']
         self.batch_size = json_config['batch_size']
-        self.num_workers = json_config['num_workers']
         self.tag = json_config.get("tag", "base")
         self.chosen_train_set = "./cifar_10.pickle" if self.model == 'resnet' else "./datasets/shufflenet_train_set.pickle"
         self.image_dim = json_config.get("image_dim", [3, 32, 32])
@@ -44,13 +42,11 @@ class Config:
             (augumentation, self.image_dim, tag=self.tag, model_name=self.model)
             for augumentation in json_config.get("augumentations")]
         template_mixup = self.augumentations.pop()
-        print(self.augumentations)
         if isinstance(template_mixup, MixupAugumentation):
             for label in range(len(self.labels)):
                 temp = copy.deepcopy(template_mixup)
                 temp.class_ = label
                 self.augumentations.append(temp)
-        print(len(self.augumentations))
 
         # self.dataset = ImageNetKaggle(root=json_config['dataset_path'], split="val", transform=lambda x: self.transform(image=np.array(x))["image"].float()/255.0)
 
@@ -60,8 +56,8 @@ class Config:
         self.model_filename = json_config.get("model_location", None)
         self.g_drive_hash = json_config.get("model_g_drive", None)
 
-        if self.g_drive_hash is not None and not os.path.isfile(self.model_filename):
-            self.model_filename = f"./{gdown.download(id=self.g_drive_hash)}"
+        # if self.g_drive_hash is not None and not os.path.isfile(self.model_filename):
+        #     self.model_filename = f"./{gdown.download(id=self.g_drive_hash)}"
 
         self.save_preprocessing = json_config.get("save_preprocessing", False)
         self.color_channels = ColorChannels.count_channels(

@@ -14,7 +14,6 @@ def create_and_shuffle_indexes(matrix_shape: tuple):
 
 
 def generate_mask(shape: tuple):
-    print(shape)
     torch.manual_seed(0)
     temp = torch.randn(shape)
     return temp
@@ -47,7 +46,6 @@ class BaseAugumentation:
 class NoiseAugumentation(BaseAugumentation):
     def __init__(self, config: dict, image_dim: list, tag: str, model_name: str) -> None:
         super().__init__(config, tag, model_name)
-        print(image_dim)
         self.mask = generate_mask(list(reversed(image_dim)))
         self.shuffled_indexes = create_and_shuffle_indexes(image_dim)
         self.max_size = image_dim[1] * image_dim[2]
