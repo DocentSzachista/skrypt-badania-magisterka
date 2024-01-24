@@ -1,5 +1,5 @@
 {
-    "tag": "noise",
+    "tag": "imagenet",
     "models": ["resnet", "convnext", "vgg", "vit", "efficientnet"],
     "augumentations": [
         {
