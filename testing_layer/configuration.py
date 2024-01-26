@@ -31,6 +31,7 @@ class Config:
 
     def __init__(self, json_config: dict) -> None:
         self.model = json_config.get("model")
+        self.number_neighbours = json_config.get("neightbours_number", 100)
         print(self.model)
         self.tag = json_config.get("tag", "base")
         self.chosen_train_set = "./cifar_10.pickle" if self.model == 'resnet' else "./datasets/shufflenet_train_set.pickle"

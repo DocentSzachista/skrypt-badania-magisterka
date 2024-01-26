@@ -6,12 +6,16 @@ from visualization_layer.calculations import *
 from testing_layer.workflows.augumentations import *
 from os.path import isfile
 
+def softmax(vector: np.ndarray):
+    e = np.exp(vector)
+    return e / e.sum()
+
 
 def min_max_scaling(x: np.ndarray): return  (x - np.min(x)) / (np.max(x) - np.min(x))
 
 
 def make_calculations(loaded_config: Config):
-    """ Przeprowadź obliczenia odległości, i innych statystyk na podstawie konfiguracji. """
+    """ Przeprowadź obliczenia odległości, i innych statystyk na podstawie konfiguracji."""
     print(loaded_config.chosen_train_set)
     train = pd.read_pickle(loaded_config.chosen_train_set)
     cosine = CosineDistance()
@@ -69,11 +73,83 @@ def make_calculations(loaded_config: Config):
             json.dump(acc_wide, file)
 
 
+def count_softmax_values(config: Config):
+    for augumentation in config.augumentations:
+        base_dir = "{}/dataframes".format(augumentation.template_path)
+        base_output_dir = config.count_base_dir.joinpath(
+            augumentation.template_path)
+        iterator = augumentation.make_iterator()
+        individual_calculations_dir = base_output_dir.joinpath("distances")
+        for step in iterator:
+            step = round(step, 2)
+            print("Counting step: {}".format(step))
+            file_path = base_dir + "/{}.pickle".format(step)
+            if isfile(individual_calculations_dir.joinpath("softmax-step-{}.pickle".format(step))):
+                print("File detected, skipping")
+                continue
+            df = pd.read_pickle(file_path)
+            ids = df.id.values
+            original_labels = df.original_label.values
+            recognized_labels = df.predicted_label.values
+            logits =  np.stack(df['classifier'].values)
+            print(logits.shape)
+            softmaxed = np.apply_along_axis(softmax, 1, logits)
+            to_save = pd.DataFrame(
+                {"id": ids,
+                 "original_label": original_labels,
+                 "predicted_labels": recognized_labels,
+                 "softmaxed_values": list(softmaxed)
+                }
+            )
+            to_save.to_pickle(individual_calculations_dir.joinpath("softmax-step-{}.pickle".format(step)))
+
+
+def count_best_100_neighbours(config: Config):
+    k_nearest = NearestNeightboursCount(n_neighbors=config.number_neighbours)
+    for augumentation in config.augumentations:
+        base_dir = "{}/dataframes".format(augumentation.template_path)
+        base_output_dir = config.count_base_dir.joinpath(
+            augumentation.template_path)
+        iterator = augumentation.make_iterator()
+        individual_calculations_dir = base_output_dir.joinpath("distances")
+        for step in iterator:
+            ids = []
+            original_labels = []
+            recognized_labels = []
+            step = round(step, 2)
+            print("Counting step: {}".format(step))
+            file_path = base_dir + "/{}.pickle".format(step)
+            if isfile(individual_calculations_dir.joinpath("nearest-neightbour-step-{}.pickle".format(step))):
+                print("File detected, skipping")
+                continue
+            df = pd.read_pickle(file_path)
+            features = df.features.values
+            if step == 0:
+                k_nearest.fit(features)
+            else:
+                chosen = df.groupby('original_label').apply(lambda x: x.sample(n=100), random_state=0)
+                for state, frame in chosen:
+                    nearest_neightbours = k_nearest.count_neighbours(frame)
+
+            # to_save = pd.DataFrame(
+            #     {"id": ids,
+            #      "original_label": original_labels,
+            #      "predicted_labels": recognized_labels,
+            #      "softmaxed_values": list(softmaxed)
+            #     }
+            # )
+            # to_save.to_pickle(individual_calculations_dir.joinpath("softmax-step-{}.pickle".format(step)))
+
+
+
 if __name__ == "__main__":
-    with open("./config-noise-shuffle.json", "r") as file:
-        obj = json.load(file)
-    conf = Config(obj)
-    prepare_counted_values_output_dir(conf)
-    make_calculations(conf)
+    filenames = ["config-noise.json", "config-noise-shuffle.json", "config-mixup.json", "config-mixup-shuffle.json"]
+    for filename in filenames:
+        with open("./{}".format(filename), "r") as file:
+            obj = json.load(file)
+        conf = Config(obj)
+        prepare_counted_values_output_dir(conf)
+        count_softmax_values(conf)
+    # make_calculations(conf)
     # import shutil
     # shutil.make_archive("counted_outputs", "zip", conf.count_base_dir)
