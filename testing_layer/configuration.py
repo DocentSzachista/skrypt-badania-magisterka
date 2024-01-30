@@ -47,6 +47,9 @@ class Config:
                 temp = copy.deepcopy(template_mixup)
                 temp.class_ = label
                 self.augumentations.append(temp)
+        else:
+            # obviously not a mixup
+            self.augumentations = [template_mixup]
 
         # self.dataset = ImageNetKaggle(root=json_config['dataset_path'], split="val", transform=lambda x: self.transform(image=np.array(x))["image"].float()/255.0)
 
