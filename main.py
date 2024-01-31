@@ -84,21 +84,22 @@ def handle_mixup(augumentation: MixupAugumentation, dataset: ImageNetKaggle, ite
 
 def handle_noise(transformations, augumentation: NoiseAugumentation, dataset: CIFAR10 | ImageNet, iterator: list, batch_size: int):
     """Handle noise augumentation"""
-    # return
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=False)
     for step in iterator:
-        transforms = A.Compose([
-            transformations,
-            NoiseTransform(
-                number_of_pixels=step, shuffled_indexes=augumentation.shuffled_indexes,
-                mask=augumentation.mask)])
+        # transforms = A.Compose([
+        #     transformations,
+        #     NoiseTransform(
+        #         number_of_pixels=step, shuffled_indexes=augumentation.shuffled_indexes,
+        #         mask=augumentation.mask)])
         # dataset.transform = transformations
-        dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=False)
+        perc = round( step*100 /augumentation.max_size, 2)
+        print("Testing model on {}% pixels of image being pertubated with random noise.".format(perc))
         to_save = test_model_with_data_loader(model, dataloader, step, augumentation)
-
         df = pd.DataFrame(to_save, columns=conf.columns)
         df["noise_percent"] = df["noise_percent"].apply(lambda numb: round(numb / augumentation.max_size, 2))
         save_path = "{}/dataframes/{}.pickle".format(augumentation.template_path, round(step, 2))
-        print("Saving...")
+
+        print(f"Saving results for {perc} % pixels of image being pertubated with random noise")
         df.to_pickle(save_path)
 
 
@@ -111,9 +112,11 @@ if __name__ == "__main__":
         obj['model'] = tested_model.value
         conf = Config(obj)
         prepare_save_directory(conf)
+        print("Loading model: {}".format(tested_model.value))
         model, transformations = load_model(tested_model)
         dataset = ImageNetKaggle(root=obj['dataset_path'], split="val", transform=transformations)
 
+        print("Setting hooks for the model")
         hook = setup_a_hook(model, tested_model)
         # print(transformations)
         # break
@@ -131,6 +134,7 @@ if __name__ == "__main__":
                     handle_mixup(augumentation, dataset, iterator, conf.batch_size)
                 elif isinstance(augumentation, NoiseAugumentation):
                     handle_noise(transformations, augumentation, dataset, iterator, conf.batch_size)
+        print("Remove hooks")
         remove_hook(hook)
 
 
