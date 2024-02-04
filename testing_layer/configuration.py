@@ -31,6 +31,9 @@ class Config:
     ])
 
     def __init__(self, json_config: dict) -> None:
+        self.num_workers = json_config['num_workers']
+        self.should_override = json_config['override_existing']
+        self.device = json_config['device']
         self.model = json_config['model']
         self.batch_size = json_config['batch_size']
         self.tag = json_config.get("tag", "base")

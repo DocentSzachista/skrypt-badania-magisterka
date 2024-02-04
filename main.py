@@ -17,26 +17,30 @@ from testing_layer.model_loading import *
 from testing_layer.model_loading import load_model
 from testing_layer.workflows.enums import SupportedModels
 from testing_layer.workflows.augumentations import apply_noise
+import torchvision
+import torchvision.transforms as transforms
+
 
 def converter(tensor): return tensor.detach().cpu().numpy()
 
 
-def test_model_with_data_loader(model, data_loader: DataLoader, mask_intensity: int, augumentation: BaseAugumentation):
+def test_model_with_data_loader(model, data_loader: DataLoader, mask_intensity: int, augumentation: BaseAugumentation, device: str):
     global network_features
     storage = []
 
     ind = 0
     for batch, (inputs, targets) in enumerate(data_loader):
-        if isinstance(augumentation, NoiseAugumentation):
-            new_inputs = []
-            for image in inputs:
-                new_inputs.append(
-                    apply_noise(image, augumentation.mask, mask_intensity, augumentation.shuffled_indexes, image.shape[2] )
-                )
-            inputs = torch.stack(new_inputs)
-            # torchvision.utils.save_image(inputs[0], f"./zabawy_testy/testowy_obraz{batch}.jpg")
+        print("Testing batch {}/{}".format(batch, len(data_loader)))
+        # if isinstance(augumentation, NoiseAugumentation):
+        #     new_inputs = []
+        #     for image in inputs:
+        #         new_inputs.append(
+        #             apply_noise(image, augumentation.mask, mask_intensity, augumentation.shuffled_indexes, image.shape[2] )
+        #         )
+        #     inputs = torch.stack(new_inputs)
+        torchvision.utils.save_image(inputs[0], f"./zabawy_testy/testowy_obraz{batch}.jpg")
 
-        inputs, targets = inputs.to("cuda:0"), targets.to("cuda:0")
+        inputs, targets = inputs.to(device), targets.to(device)
         logits = model(inputs)
         _, predicted = torch.max(logits, dim=1)
         predicted = converter(predicted)
@@ -72,7 +76,7 @@ def handle_mixup(augumentation: MixupAugumentation, dataset: ImageNetKaggle, ite
                 augumentation.template_path, augumentation.class_, step),
             should_save_processing=False)
         # dataset.alpha = step
-        dataloader = DataLoader(dataset_step, batch_size=batch_size, shuffle=False, drop_last=False)
+        dataloader = DataLoader(dataset_step, batch_size=batch_size, shuffle=False, drop_last=False, num_workers=3)
         to_save = test_model_with_data_loader(model, dataloader, step, augumentation)
         df = pd.DataFrame(to_save, columns=conf.columns)
         df["noise_percent"] = df["noise_percent"].apply(lambda numb: round(numb / augumentation.max_size, 2))
@@ -80,33 +84,38 @@ def handle_mixup(augumentation: MixupAugumentation, dataset: ImageNetKaggle, ite
         save_path = "{}/dataframes/{}.pickle".format(augumentation.template_path, round(step, 2))
         print("Saving...")
         df.to_pickle(save_path)
+import os
 
-
-def handle_noise(transformations, augumentation: NoiseAugumentation, dataset: CIFAR10 | ImageNet, iterator: list, batch_size: int):
+def handle_noise(transformations, augumentation: NoiseAugumentation, dataset: CIFAR10 | ImageNet, iterator: list, batch_size: int, num_workers: int, device: str, should_override: bool):
     """Handle noise augumentation"""
-    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=False)
+    dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=False, num_workers=num_workers)
     for step in iterator:
-        # transforms = A.Compose([
-        #     transformations,
-        #     NoiseTransform(
-        #         number_of_pixels=step, shuffled_indexes=augumentation.shuffled_indexes,
-        #         mask=augumentation.mask)])
-        # dataset.transform = transformations
+        save_path = "{}/dataframes/{}.pickle".format(augumentation.template_path, round(step, 2))
         perc = round( step*100 /augumentation.max_size, 2)
+        if os.path.isfile(save_path) and not should_override:
+            print("File detected: skip testing for {}".format(perc))
+            continue
         print("Testing model on {}% pixels of image being pertubated with random noise.".format(perc))
-        to_save = test_model_with_data_loader(model, dataloader, step, augumentation)
+        transformation = transforms.Compose([
+            transformations,
+            NoiseTransform(
+                number_of_pixels=step, shuffled_indexes=augumentation.shuffled_indexes,
+                mask=augumentation.mask)]
+        )
+        dataset.transform = transformation
+        to_save = test_model_with_data_loader(model, dataloader, step, augumentation, device)
         df = pd.DataFrame(to_save, columns=conf.columns)
         df["noise_percent"] = df["noise_percent"].apply(lambda numb: round(numb / augumentation.max_size, 2))
-        save_path = "{}/dataframes/{}.pickle".format(augumentation.template_path, round(step, 2))
+        # save_path = "{}/dataframes/{}.pickle".format(augumentation.template_path, round(step, 2))
 
         print(f"Saving results for {perc} % pixels of image being pertubated with random noise")
         df.to_pickle(save_path)
 
 
 if __name__ == "__main__":
-    set_workstation("cuda:0")
     with open("./config-imagenet.json", "r") as file:
         obj = json.load(file)
+        set_workstation(obj['device'])
         models = [ SupportedModels(model) for model in obj.get("models")]
     for tested_model in models:
         obj['model'] = tested_model.value
@@ -122,7 +131,7 @@ if __name__ == "__main__":
         # break
         with torch.no_grad():
             model.eval()
-            model.cuda()
+            model.to(conf.device)
             for augumentation in conf.augumentations:
                 if(isinstance(augumentation,NoiseAugumentation)):
                     new_size = transformations.crop_size[0]
@@ -133,7 +142,7 @@ if __name__ == "__main__":
                 if isinstance(augumentation, MixupAugumentation):
                     handle_mixup(augumentation, dataset, iterator, conf.batch_size)
                 elif isinstance(augumentation, NoiseAugumentation):
-                    handle_noise(transformations, augumentation, dataset, iterator, conf.batch_size)
+                    handle_noise(transformations, augumentation, dataset, iterator, conf.batch_size, conf.num_workers, conf.device, conf.should_override)
         print("Remove hooks")
         remove_hook(hook)
 

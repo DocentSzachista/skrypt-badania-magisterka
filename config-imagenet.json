@@ -9,11 +9,14 @@
             "step": 3136
         }
     ],
+    "device": "cuda:0",
+    "num_workers": 4,
     "batch_size": 50,
     "dataset": "imagenet",
-    "dataset_path": "R:/Pobrane/imagenet-object-localization-challenge(1)",
+    "dataset_path": "/home/doc/Downloads/imagenet-object-localization-challenge",
     "image_dim": [3, 256, 256],
     "chosen_color_chanels": "RGB",
     "save_preprocessing": false,
-    "neightbours_number": 100
+    "neightbours_number": 100, 
+    "override_existing": false
 }

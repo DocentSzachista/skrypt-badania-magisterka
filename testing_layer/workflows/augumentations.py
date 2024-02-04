@@ -19,7 +19,7 @@ def generate_mask(shape: tuple):
     return temp
 
 
-def apply_noise(image: torch.Tensor, mask: np.ndarray, number_of_pixels: int, shuffled_indexes: list, image_length: int):
+def apply_noise(image: torch.Tensor, mask: np.ndarray, number_of_pixels: int, shuffled_indexes: list):
         image_copy = copy.deepcopy(image)
         image_length = image.shape[1]
         for index in range(number_of_pixels):

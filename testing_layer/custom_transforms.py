@@ -14,11 +14,8 @@ class NoiseTransform(object):
 
     def __call__(self, image: np.ndarray):
         image_copy = copy.deepcopy(image)
-        print("akuku")
-        print(image.shape)
-        image_length = 65536
         for index in range(self.number_of_pixels):
-            i = self.shuffled_indexes[index] // image_length
-            j = self.shuffled_indexes[index] % image_length
-            image_copy[i,j, :] = np.add(image_copy[i,j, :],  self.mask[i,j, :])
-        return {"image": image_copy.astype(np.uint8)}
+            i = self.shuffled_indexes[index] // self.mask.shape[1]
+            j = self.shuffled_indexes[index] % self.mask.shape[1]
+            image_copy[:, i,j] = np.add(image_copy[:, i,j],  self.mask[:, i,j ])
+        return image_copy
