@@ -69,6 +69,8 @@ def count_distance(dataframe: pd.DataFrame, step: int, output_path: pathlib.Path
                    targets: list
                    ): 
     counted_distance  = distance_method.count_distance(dataframe)
+    if isinstance(distance_method, MahalanobisDistance):
+        counted_distance = counted_distance.T
     distances = {k: {
         distance_method.name: counted_distance[k],
         "original_label": dataframe.iloc[k]['original_label'],
