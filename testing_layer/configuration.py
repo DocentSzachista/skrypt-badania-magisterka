@@ -37,9 +37,10 @@ class Config:
         self.model = json_config['model']
         self.batch_size = json_config['batch_size']
         self.tag = json_config.get("tag", "base")
-        self.chosen_train_set = "./cifar_10.pickle" if self.model == 'resnet' else "./datasets/shufflenet_train_set.pickle"
         self.image_dim = json_config.get("image_dim", [3, 32, 32])
         self.labels = self.dataset_labels.get(SupportedDatasets(json_config.get("dataset")))
+        self.dataset = None
+
         self.augumentations = [
             self.supported_augumentations[SupportedAugumentations(augumentation["name"])]
             (augumentation, self.image_dim, tag=self.tag, model_name=self.model)

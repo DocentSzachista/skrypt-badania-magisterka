@@ -133,14 +133,3 @@ class NearestNeightboursCount:
             }
             to_return_list.append(to_return)
         return to_return_list
-
-
-if __name__ == "__main__":
-    df = pd.read_pickle("./cifar_10.pickle")
-
-    mahal = MahalanobisDistance()
-    mahal.fit(df)
-    cosine = CosineDistance()
-    cosine.fit(df)
-
-    print(cosine.count_distance(df)[0])
