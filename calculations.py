@@ -64,10 +64,13 @@ def count_softmax(dataframe: pd.DataFrame, output_path: pathlib.Path, step: int)
     to_save.to_pickle(save_path)
 
 
-def count_distance(dataframe: pd.DataFrame, step: int, output_path: pathlib.Path, 
+def count_distance(file_path: str, step: int, output_path: pathlib.Path, 
                    distance_method: MahalanobisDistance | CosineDistance | EuclidianDistance,
                    targets: list
                    ): 
+    logging.info("Counting step: {}".format(step))
+    dataframe = pd.read_pickle(file_path)
+    dataframe['features'] = dataframe.features.apply(min_max_scaling)
     counted_distance  = distance_method.count_distance(dataframe)
     if isinstance(distance_method, MahalanobisDistance):
         counted_distance = counted_distance.T
@@ -79,6 +82,8 @@ def count_distance(dataframe: pd.DataFrame, step: int, output_path: pathlib.Path
     }
     pd.DataFrame.from_dict(distances, orient="index").to_pickle(
         output_path.joinpath("{}/distance-step-{}.pickle".format(distance_method.name, step)))
+    logging.info("Saving step {}".format(step))
+    
 
 
 
@@ -91,11 +96,11 @@ def perform_counting_per_method(config: Config, should_use_multiprocessing: bool
     mahalanobis = MahalanobisDistance()
 
     methods_to_count = {
-        "softmax": count_softmax,
-        "matrixes": calculate_confussion_matrix,
-        # "euclidean": euclidean,
-        # "cosine": cosine,
-        # "mahalanobis": mahalanobis
+        # "softmax": count_softmax,
+        # "matrixes": calculate_confussion_matrix,
+        "euclidean": euclidean,
+        "cosine": cosine,
+        "mahalanobis": mahalanobis
     }
 
 
@@ -115,10 +120,9 @@ def perform_counting_per_method(config: Config, should_use_multiprocessing: bool
             elif key == "mahalanobis": 
                 mahalanobis.fit(train)
             if should_use_multiprocessing: 
-                
                 with Pool(processes=config.num_workers) as pool:
-                    pool.map(
-                        iterator
+                    pool.starmap(
+                        count_distance, [(base_dir + "/{}.pickle".format(step), step, base_output_dir, method, labels) for step in iterator ]
                     )
             else:
                 for step in iterator:
@@ -129,7 +133,7 @@ def perform_counting_per_method(config: Config, should_use_multiprocessing: bool
                     if isinstance(method, Metrics):
                         dataframe['features'] = dataframe.features.apply(min_max_scaling)
                         count_distance(
-                            dataframe, step, base_output_dir, method, config.labels
+                            dataframe, step, base_output_dir, method, labels
                         )
                     else:
                         method(dataframe, base_output_dir, step)
@@ -274,6 +278,6 @@ if __name__ == "__main__":
         # conf.augumentations[0].se
         print("Count model: {}".format(tested_model.value))
         prepare_counted_values_output_dir(conf)
-        perform_counting_per_method(conf)
+        perform_counting_per_method(conf, True)
         # count_softmax_values(conf)
         # make_calculations(conf)

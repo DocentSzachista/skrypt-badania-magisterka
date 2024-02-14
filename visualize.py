@@ -20,6 +20,24 @@ from testing_layer.workflows.augumentations import *
 import albumentations as A
 from testing_layer.custom_transforms import NoiseTransform
 from torchvision.utils import save_image
+from testing_layer.workflows.enums import SupportedModels
+from testing_layer.datasets import MixupDataset, ImageNetKaggle
+
+
+
+
+X_PERCENT_LABEL = "nałożona modyfikacja (%)"
+Y_SOFTMAX_LABEL = "klasy"
+SOFMTAX_TITLE = "Wykres zmiany SOFTMAX dla: {}"
+
+X_LABEL_CONFUSSION = "Actual"
+Y_LABEL_CONFUSSION = "Predicted"
+
+Y_DIST_LABEL = "Distance"
+NEIGH_LABEL = "number of neightbours"
+
+
+
 
 
 def make_confussion_matrix_plot(cf_matrix: np.ndarray, axs: Axes, plot_title: str, labels: list):
@@ -30,11 +48,25 @@ def make_confussion_matrix_plot(cf_matrix: np.ndarray, axs: Axes, plot_title: st
         columns=[i for i in labels]
     )
     axs.set_title(plot_title)
-    axs.set_xlabel("predicted")
-    axs.set_ylabel("Actual")
+    axs.set_xlabel(X_LABEL_CONFUSSION)
+    axs.set_ylabel(Y_LABEL_CONFUSSION)
     sn.heatmap(
         df_cm, annot=True, fmt="g", ax=axs
     )
+
+
+def prepare_axis(ax: plt.Axes, x_axis: list, y_axis: np.ndarray,
+                     title: str, x_label: str, y_label: str):
+        ax.set_xlabel(x_label)
+        ax.set_ylabel(y_label)
+        ax.set_title(title)
+        ax.grid()
+        return ax.plot(
+            x_axis, y_axis,
+        )
+
+
+
 
 
 def make_step_bar_plot(
@@ -240,6 +272,61 @@ def make_matrix_plots(loaded_config: Config, labels: list):
     return thresholds
 
 
+
+def make_average_softmax_plot(config: Config):
+    """ Sporządź średni wykres funkcji softmax dla logitsów.
+
+    """
+    figure, axis = plt.subplots(1, 1, figsize=(20, 20))
+
+    for augumentation in config.augumentations:
+        base_path_counted = config.count_base_dir.joinpath(augumentation.template_path)
+        iterator = augumentation.make_iterator()
+        base_path_visualize = config.visualization_base_dir.joinpath(
+           augumentation.template_path
+        ).joinpath("softmaxes")
+
+        base_path_visualize.mkdir(parents=True, exist_ok=True)
+        x_axis = np.round(100*iterator / augumentation.max_size, 2)
+        softmax_means = {k: [] for k in range(len(config.labels))}
+        softmax_all = {k: [] for k in range(len(config.labels))} 
+        dist_path = base_path_counted.joinpath("softmax")
+
+        for step in iterator:
+            print(f"In step {step}")
+            step = round(step, 2)
+            df = pd.read_pickle(dist_path.joinpath("step-{}.pickle".format(step)))
+            by_state = df.groupby("original_label")
+
+            for state, frame in by_state:
+                sofmax_mean = frame.softmaxed_values.mean()
+                softmax_all[state].append(sofmax_mean[state])
+                # softmax_means[state].append(sofmax_mean)
+        # for keys, values in softmax_means.items():
+        #     values = np.asarray(values)
+        #     line = prepare_axis(
+        #         axis, x_axis, values, SOFMTAX_TITLE.format(config.labels[keys]), X_PERCENT_LABEL, Y_SOFTMAX_LABEL
+        #     )
+        #     figure.legend(tuple(line), tuple(config.labels))
+        #     figure.gca().lines[keys].set_linewidth(4)
+        #     figure.savefig(base_path_visualize.joinpath("softmax_class_{}.png".format(config.labels[keys])))
+        #     axis.cla()
+                
+        df = pd.DataFrame(softmax_all)
+        df = df.T
+        sn.heatmap(df, annot=False, cmap="RdYlGn", ax=axis)
+        # axis.set  # annot=True, aby wyświetlać wartości
+        axis.set_xticks(np.arange(len(x_axis)) + 0.5, labels=x_axis, rotation=45)
+        axis.set_yticklabels([])
+        axis.set_title("Mapa cieplna średnich wartości softmax model {}".format(config.model))
+        axis.set_xlabel(X_PERCENT_LABEL)
+        axis.set_ylabel(Y_SOFTMAX_LABEL)
+        figure.savefig(base_path_visualize.joinpath("softmax_{}_class_{}.png".format(config.model, "All")))
+
+
+
+
+
 def make_average_plots(loaded_config: Config, labels: list, below_rate_indicises: dict | None = None):
     """Tworzy wykresy średnich odległości i liczby sąsiadów w zależności od klasy"""
     def prepare_axis(ax: plt.Axes, x_axis: list, y_axis: np.ndarray,
@@ -265,10 +352,6 @@ def make_average_plots(loaded_config: Config, labels: list, below_rate_indicises
             x_axis, y_axis,
         )
 
-
-    x_label = "percentage image augumentation"
-    dist_label = "Distance"
-    neigh_label = "number of neightbours"
 
     for augumentation in loaded_config.augumentations:
         base_path_counted = config.count_base_dir.joinpath(augumentation.template_path)
@@ -361,10 +444,10 @@ def make_average_plots(loaded_config: Config, labels: list, below_rate_indicises
         handles, labels = plot_figure.gca().get_legend_handles_labels()
         by_label = dict(zip(labels, handles))
         plot_figure.legend(by_label.values(), by_label.keys() ,loc="center right")
-        plot_figure.supylabel(dist_label)
-        plot_figure.supxlabel(x_label)
+        plot_figure.supylabel(X_PERCENT_LABEL)
+        plot_figure.supxlabel(X_PERCENT_LABEL)
         mean_neigh_fig.legend()
-        neigh_ax.set_xlabel(x_label)
+        neigh_ax.set_xlabel(X_PERCENT_LABEL)
         neigh_ax.set_ylabel("number of neighbours")
         mean_neigh_fig.savefig(distance_visul_path.joinpath("mean-neightbours-all.png"))
 
@@ -389,9 +472,9 @@ def make_average_plots(loaded_config: Config, labels: list, below_rate_indicises
             conv_euclid = np.vstack(values['euclidean'])
             conv_neight = np.vstack(values['neighbours'])
             l1 = prepare_axis(plot_ax[0], x_axis, conv_mahal, "mahalanobis",
-                              x_label, dist_label, below_rate_indicises)
-            prepare_axis(plot_ax[1], x_axis, conv_cosine, "cosine", x_label, dist_label, below_rate_indicises)
-            prepare_axis(plot_ax[2], x_axis, conv_euclid, "euclidean", x_label, dist_label, below_rate_indicises)
+                              X_PERCENT_LABEL, X_PERCENT_LABEL, below_rate_indicises)
+            prepare_axis(plot_ax[1], x_axis, conv_cosine, "cosine", X_PERCENT_LABEL, X_PERCENT_LABEL, below_rate_indicises)
+            prepare_axis(plot_ax[2], x_axis, conv_euclid, "euclidean", X_PERCENT_LABEL, X_PERCENT_LABEL, below_rate_indicises)
             plot_fig.legend(
                 tuple(l1), tuple(labels),  loc='outside right upper'
             )
@@ -406,7 +489,7 @@ def make_average_plots(loaded_config: Config, labels: list, below_rate_indicises
                     labels[class_],
                     augumentation.name))
             line = prepare_axis(
-                plot_ax, x_axis, conv_neight, "", x_label, neigh_label, below_rate_indicises
+                plot_ax, x_axis, conv_neight, "", X_PERCENT_LABEL, NEIGH_LABEL, below_rate_indicises
             )
             plot_ax.grid()
             plot_fig.legend(
@@ -417,17 +500,22 @@ def make_average_plots(loaded_config: Config, labels: list, below_rate_indicises
 
 
 if __name__ == "__main__":
-    filenames = ["config-noise.json", "config-noise-shuffle.json", "config-mixup.json", "config-mixup-shuffle.json"]
+    with open("./config-imagenet.json", "r") as file:
+        obj = json.load(file)
+        models = [SupportedModels(model) for model in obj.get("models")]
 
-    for filename in filenames:
-        with open(f"./{filename}", "r") as file:
-            obj = json.load(file)
+        dataset = ImageNetKaggle(root=obj['dataset_path'], split="val", transform=None)
+
+    for tested_model in models:
+        obj['model'] = tested_model.value
         config = Config(obj)
+        config.dataset = dataset
         prepare_visualization_output_dir(config)
         sn.set_theme()
-        indicise = make_matrix_plots(config, config.labels)
+        # indicise = make_matrix_plots(config, config.labels)
         # print(indicise)
-        make_average_plots(config, config.labels)
+        # make_average_plots(config, config.labels)
+        make_average_softmax_plot(config)
     # make_individual_stats(config)
     # generate_step_images(config)
 

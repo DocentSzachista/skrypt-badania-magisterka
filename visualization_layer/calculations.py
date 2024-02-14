@@ -34,7 +34,7 @@ class EuclidianDistance(Metrics):
 
     def count_distance(self, df: pd.DataFrame):
         """Licz średnią odległość euklidesową od zbioru punktów dla zbioru x"""
-        x = df['features'].to_numpy().astype(np.float16)
+        x = df['features'].to_numpy()
         x = np.stack(x).squeeze()  # .tolist()
         res = []
         for row in x:
@@ -63,7 +63,7 @@ class CosineDistance(Metrics):
 
     def count_distance(self, df: pd.DataFrame):
         """ Oblicz średnią odległość cosinusową od zestawu punktów"""
-        x = df['features'].to_numpy().astype(np.float16)
+        x = df['features'].to_numpy()
         x = np.stack(x).squeeze()
         res = []
         for row in x:
@@ -95,7 +95,7 @@ class MahalanobisDistance:
             self.dist[index] = EmpiricalCovariance().fit(x)
 
     def count_distance(self, df: pd.DataFrame):
-        x = df['features'].to_numpy().astype(np.float16)
+        x = df['features'].to_numpy()
 
         x = np.stack(x).squeeze().tolist()
         res = np.stack([np.sqrt(self.dist[index].mahalanobis(x)) for index in self.classes], axis=0)
