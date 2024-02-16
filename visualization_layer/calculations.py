@@ -29,8 +29,10 @@ class EuclidianDistance(Metrics):
     def fit(self, df: pd.DataFrame):
         self.classes = np.sort(df.original_label.unique())
         for index in self.classes:
-            x = df[df['original_label'] == index]['features'].tolist()
-            self.dist[index] = x
+            x = np.stack(df[df['original_label'] == index]['features'].to_numpy())
+            # print(x.shape)
+            self.dist[index] = np.stack(x.mean(axis=0))
+            # print(self.dist[index].shape)
 
     def count_distance(self, df: pd.DataFrame):
         """Licz średnią odległość euklidesową od zbioru punktów dla zbioru x"""
@@ -40,8 +42,8 @@ class EuclidianDistance(Metrics):
         for row in x:
             row_dist = []
             for class_ in self.classes:
-                instance = np.linalg.norm(self.dist[class_] - row, axis=1)
-                row_dist.append(np.mean(instance))
+                instance = np.linalg.norm(self.dist[class_] - row)
+                row_dist.append(instance)
             res.append(row_dist)
         res = np.stack(res, axis=0)
         print(res.shape)
@@ -58,8 +60,8 @@ class CosineDistance(Metrics):
     def fit(self, df: pd.DataFrame):
         self.classes = np.sort(df.original_label.unique())
         for index in self.classes:
-            x = df[df['original_label'] == index]['features'].tolist()
-            self.dist[index] = x
+            x = df[df['original_label'] == index]['features'].to_numpy()
+            self.dist[index] = x.mean(axis=0)
 
     def count_distance(self, df: pd.DataFrame):
         """ Oblicz średnią odległość cosinusową od zestawu punktów"""
@@ -70,7 +72,7 @@ class CosineDistance(Metrics):
             row_dist = []
             for class_ in self.classes:
                 instance = cosine_distances(self.dist[class_], [row])
-                row_dist.append(np.mean(instance))
+                row_dist.append(instance)
             res.append(row_dist)
         res = np.stack(res, axis=0)
         print(res.shape)
