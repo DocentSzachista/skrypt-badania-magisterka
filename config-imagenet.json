@@ -1,6 +1,6 @@
 {
     "tag": "imagenet",
-    "models": ["convnext", "vgg", "vit", "efficientnet"],
+    "models": ["convnext", "vgg", "vit", "efficientnet", "resnet"],
     "augumentations": [
         {
             "name": "noise",
