@@ -22,6 +22,7 @@ from testing_layer.custom_transforms import NoiseTransform
 from torchvision.utils import save_image
 from testing_layer.workflows.enums import SupportedModels
 from testing_layer.datasets import MixupDataset, ImageNetKaggle
+from testing_layer.model_loading import load_model
 
 
 
@@ -289,7 +290,7 @@ def make_average_softmax_plot(config: Config):
         base_path_visualize.mkdir(parents=True, exist_ok=True)
         x_axis = np.round(100*iterator / augumentation.max_size, 2)
         softmax_means = {k: [] for k in range(len(config.labels))}
-        softmax_all = {k: [] for k in range(len(config.labels))} 
+        softmax_all = {k: [] for k in range(len(config.labels))}
         dist_path = base_path_counted.joinpath("softmax")
 
         for step in iterator:
@@ -311,7 +312,7 @@ def make_average_softmax_plot(config: Config):
         #     figure.gca().lines[keys].set_linewidth(4)
         #     figure.savefig(base_path_visualize.joinpath("softmax_class_{}.png".format(config.labels[keys])))
         #     axis.cla()
-                
+
         df = pd.DataFrame(softmax_all)
         df = df.T
         sn.heatmap(df, annot=False, cmap="RdYlGn", ax=axis)
@@ -499,6 +500,44 @@ def make_average_plots(loaded_config: Config, labels: list, below_rate_indicises
             plt.close(plot_fig)
 
 
+def make_boxplots(config: Config):
+
+
+    for augumentation in config.augumentations:
+        base_path_counted = config.count_base_dir.joinpath(augumentation.template_path)
+        iterator = augumentation.make_iterator()
+        base_path_visualize = config.visualization_base_dir.joinpath(
+           augumentation.template_path
+        ).joinpath("Euclidian")
+        dist_path = base_path_counted.joinpath("Cosine")
+
+
+        stepping = []
+
+        for step in iterator:
+            print(f"In step {step}")
+            step = round(step, 2)
+            df = pd.read_pickle(dist_path.joinpath("distance-step-{}.pickle".format(step)))
+            print(df.index.size)
+            by_state = df.groupby("original_label")
+            # mean_distance_by_original_class = {k: {"mahalanobis": [], "cosine": [], "euclidean": [], "neighbours": []} for k in range(10)}
+            distances = np.zeros(shape=(1000, 50))
+            for state, group in by_state:
+                dist = np.stack(group['Cosine'].to_numpy())
+                print(dist.shape)
+                print(distances.shape)
+                distances[state, :] = dist[state, :]
+            stepping.append(distances)
+
+
+        plot_fig, plot_ax = plt.subplots(1, 1, figsize=(20, 20))
+
+        plt.boxplot(stepping)
+        # plot_ax.
+
+
+
+
 if __name__ == "__main__":
     with open("./config-imagenet.json", "r") as file:
         obj = json.load(file)
@@ -508,14 +547,20 @@ if __name__ == "__main__":
 
     for tested_model in models:
         obj['model'] = tested_model.value
+        _, transformations = load_model(tested_model)
+        new_size = transformations.crop_size[0]
+        obj['augumentations'][0]['finish_point'] = (new_size**2) * 3
         config = Config(obj)
         config.dataset = dataset
         prepare_visualization_output_dir(config)
+
         sn.set_theme()
+        make_boxplots(config)
         # indicise = make_matrix_plots(config, config.labels)
         # print(indicise)
         # make_average_plots(config, config.labels)
-        make_average_softmax_plot(config)
+        # make_average_softmax_plot(config)
+
     # make_individual_stats(config)
     # generate_step_images(config)
 

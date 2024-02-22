@@ -75,9 +75,9 @@ def count_distance(file_path: str, step: int, output_path: pathlib.Path,
         output_path = output_path.joinpath("{}/".format(distance_method.name))
         output_path.mkdir(parents=False, exist_ok=True)
         output_path = output_path.joinpath("distance-step-{}.pickle".format( step))
-        if isfile(output_path):
-            logging.info("Found file. Skipping step {}".format(step))
-            return
+        # if isfile(output_path):
+        #     logging.info("Found file. Skipping step {}".format(step))
+        #     return
         logging.info("Counting step: {}".format(step))
         dataframe = pd.read_pickle(file_path)
         logging.info("Scaling dataframe {}".format(step))
@@ -91,7 +91,7 @@ def count_distance(file_path: str, step: int, output_path: pathlib.Path,
             distance_method.name: counted_distance[k],
             "original_label": dataframe.iloc[k]['original_label'],
             "predicted_label": dataframe.iloc[k]['predicted_label']
-        } for k in range(len(targets))
+        } for k in range(50000)
         }
         pd.DataFrame.from_dict(distances, orient="index").to_pickle(output_path)
         logging.info("Saving step {}".format(step))
@@ -112,8 +112,8 @@ def perform_counting_per_method(config: Config, should_use_multiprocessing: bool
         # "softmax": count_softmax,
         # "matrixes": calculate_confussion_matrix,
         # "euclidean": euclidean,
-        # "cosine": cosine,
-        "mahalanobis": mahalanobis
+        "cosine": cosine,
+        # "mahalanobis": mahalanobis
     }
 
 
