@@ -34,11 +34,12 @@ SOFMTAX_TITLE = "Wykres zmiany SOFTMAX dla: {}"
 X_LABEL_CONFUSSION = "Actual"
 Y_LABEL_CONFUSSION = "Predicted"
 
-Y_DIST_LABEL = "Distance"
+Y_DIST_LABEL = "Distance {} values"
 NEIGH_LABEL = "number of neightbours"
 
 
-
+X_LABEL_BOX_PLOT = ""
+BOXPLOT_TITLE = "Wykres boxplot odległości {} dla modelu {} po zastosowaniu różnym stopniu augumentacji. {}"
 
 
 def make_confussion_matrix_plot(cf_matrix: np.ndarray, axs: Axes, plot_title: str, labels: list):
@@ -502,40 +503,47 @@ def make_average_plots(loaded_config: Config, labels: list, below_rate_indicises
 
 def make_boxplots(config: Config):
 
+    distance_methods = [
+        "Euclidian",
+        "Cosine"
+    ]
 
     for augumentation in config.augumentations:
         base_path_counted = config.count_base_dir.joinpath(augumentation.template_path)
         iterator = augumentation.make_iterator()
-        base_path_visualize = config.visualization_base_dir.joinpath(
-           augumentation.template_path
-        ).joinpath("Euclidian")
-        dist_path = base_path_counted.joinpath("Cosine")
+        x_axis = np.round(100*iterator / augumentation.max_size, 2)
+        for dist_name in distance_methods:
+            base_path_visualize = config.visualization_base_dir.joinpath(
+            augumentation.template_path
+            ).joinpath("distances")
+            dist_path = base_path_counted.joinpath(dist_name)
+
+            stepping = []
+
+            for step in iterator:
+                print(f"In step {step}")
+                step = round(step, 2)
+                df = pd.read_pickle(dist_path.joinpath("distance-step-{}.pickle".format(step)))
+                by_state = df.groupby("original_label")
+                distances = np.zeros(shape=(1000, 50))
+                for state, group in by_state:
+                    dist = np.transpose(np.stack(group[dist_name].to_numpy()))
+                    distances[state, :] = dist[state, :]
+                data = distances.flatten()
+                stepping.append(data)
 
 
-        stepping = []
+            plot_fig, plot_ax = plt.subplots(1, 1, figsize=(20, 20))
 
-        for step in iterator:
-            print(f"In step {step}")
-            step = round(step, 2)
-            df = pd.read_pickle(dist_path.joinpath("distance-step-{}.pickle".format(step)))
-            print(df.index.size)
-            by_state = df.groupby("original_label")
-            # mean_distance_by_original_class = {k: {"mahalanobis": [], "cosine": [], "euclidean": [], "neighbours": []} for k in range(10)}
-            distances = np.zeros(shape=(1000, 50))
-            for state, group in by_state:
-                dist = np.stack(group['Cosine'].to_numpy())
-                print(dist.shape)
-                print(distances.shape)
-                distances[state, :] = dist[state, :]
-            stepping.append(distances)
-
-
-        plot_fig, plot_ax = plt.subplots(1, 1, figsize=(20, 20))
-
-        plt.boxplot(stepping)
-        # plot_ax.
-
-
+            # sn.violinplot(stepping, ax=plot_ax)
+            plot_ax.boxplot(stepping, labels=x_axis)
+            plot_ax.set_ylabel(Y_DIST_LABEL.format(dist_name))
+            plot_ax.set_xlabel(X_PERCENT_LABEL)
+            plot_ax.set_xticklabels(x_axis)
+            plot_fig.suptitle(BOXPLOT_TITLE.format( dist_name, config.model, augumentation.name))
+            # plot_fig.savefig(f"{base_path_visualize}/violin-{dist_name}.png")
+            plot_fig.savefig(f"{base_path_visualize}/boxplot-{dist_name}.png")
+            plt.close(plot_fig)
 
 
 if __name__ == "__main__":
@@ -548,8 +556,8 @@ if __name__ == "__main__":
     for tested_model in models:
         obj['model'] = tested_model.value
         _, transformations = load_model(tested_model)
-        new_size = transformations.crop_size[0]
-        obj['augumentations'][0]['finish_point'] = (new_size**2) * 3
+        # new_size = transformations.crop_size[0]
+        # obj['augumentations'][0]['finish_point'] = (new_size**2) * 3
         config = Config(obj)
         config.dataset = dataset
         prepare_visualization_output_dir(config)

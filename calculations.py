@@ -112,8 +112,8 @@ def perform_counting_per_method(config: Config, should_use_multiprocessing: bool
         # "softmax": count_softmax,
         # "matrixes": calculate_confussion_matrix,
         # "euclidean": euclidean,
-        "cosine": cosine,
-        # "mahalanobis": mahalanobis
+        # "cosine": cosine,
+        "mahalanobis": mahalanobis
     }
 
 
