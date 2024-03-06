@@ -5,6 +5,7 @@ import pathlib
 import copy
 
 def create_and_shuffle_indexes(matrix_shape: tuple):
+    print(matrix_shape)
     np.random.seed(0)
     indexes = [
         i * matrix_shape[1] + j for i in range(matrix_shape[1]) for j in range(matrix_shape[1])
@@ -15,7 +16,7 @@ def create_and_shuffle_indexes(matrix_shape: tuple):
 
 def generate_mask(shape: tuple):
     torch.manual_seed(0)
-    temp = torch.randn(shape)
+    temp = torch.randn(shape)*255
     return temp
 
 
