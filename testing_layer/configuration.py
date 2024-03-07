@@ -13,7 +13,8 @@ class Config:
 
     supported_augumentations = {
         SupportedAugumentations.MIXUP: MixupAugumentation,
-        SupportedAugumentations.NOISE: NoiseAugumentation
+        SupportedAugumentations.NOISE: NoiseAugumentation,
+        SupportedAugumentations.NOISEMIXUP: MixupNoiseAugumentation
     }
 
     supported_datasets = {
@@ -46,7 +47,7 @@ class Config:
             (augumentation, self.image_dim, tag=self.tag, model_name=self.model)
             for augumentation in json_config.get("augumentations")]
         template_mixup = self.augumentations.pop()
-        if isinstance(template_mixup, MixupAugumentation):
+        if isinstance(template_mixup, MixupAugumentation) or isinstance(template_mixup, MixupNoiseAugumentation):
             for label in range(len(self.labels)):
                 temp = copy.deepcopy(template_mixup)
                 temp.class_ = label

@@ -5,7 +5,7 @@ import albumentations as A
 from albumentations.pytorch import ToTensorV2
 from torchvision.datasets import CIFAR10, ImageNet
 from testing_layer.workflows.augumentations import *
-from testing_layer.datasets import MixupDataset, ImageNetKaggle
+from testing_layer.datasets import MixupDataset, ImageNetKaggle, MixupNoiseDataset
 from torch.utils.data import DataLoader
 from testing_layer.workflows.utils import set_workstation
 import torch
@@ -19,6 +19,7 @@ from testing_layer.workflows.enums import SupportedModels
 from testing_layer.workflows.augumentations import apply_noise
 import torchvision
 import torchvision.transforms as transforms
+import os
 
 
 def converter(tensor): return tensor.detach().cpu().numpy()
@@ -38,7 +39,8 @@ def test_model_with_data_loader(model, data_loader: DataLoader, mask_intensity: 
         #             apply_noise(image, augumentation.mask, mask_intensity, augumentation.shuffled_indexes, image.shape[2] )
         #         )
         #     inputs = torch.stack(new_inputs)
-
+        # print(f"Shape: {inputs[0].shape}")
+        torchvision.utils.save_image(inputs[0], f"./porownywarka/Testowy_obraz_{batch}.png")
         inputs, targets = inputs.to(device), targets.to(device)
         logits = model(inputs)
         _, predicted = torch.max(logits, dim=1)
@@ -60,14 +62,14 @@ def test_model_with_data_loader(model, data_loader: DataLoader, mask_intensity: 
             ])
             ind += 1
 
-    network_features.clear()
-    return storage
+    # network_features.clear()
+    # return storage
 
 
-def handle_mixup(augumentation: MixupAugumentation, dataset: ImageNetKaggle, iterator: list, batch_size : int):
+def handle_mixup(augumentation: MixupAugumentation, dataset: ImageNetKaggle, iterator: list, batch_size : int, device: str):
     """Handle mixup augumentation"""
     chosen_indices = [idx for idx, label in enumerate(dataset.targets) if label == augumentation.class_]
-    dataset.chosen_class_indices = chosen_indices
+    # dataset.chosen_class_indices = chosen_indices
     print("Performing mixup for {}".format(augumentation.class_))
     for step in iterator:
         dataset_step = MixupDataset(
@@ -76,14 +78,34 @@ def handle_mixup(augumentation: MixupAugumentation, dataset: ImageNetKaggle, ite
             should_save_processing=False)
         # dataset.alpha = step
         dataloader = DataLoader(dataset_step, batch_size=batch_size, shuffle=False, drop_last=False, num_workers=3)
-        to_save = test_model_with_data_loader(model, dataloader, step, augumentation)
+        to_save = test_model_with_data_loader(model, dataloader, step, augumentation, device)
         df = pd.DataFrame(to_save, columns=conf.columns)
         df["noise_percent"] = df["noise_percent"].apply(lambda numb: round(numb / augumentation.max_size, 2))
 
         save_path = "{}/dataframes/{}.pickle".format(augumentation.template_path, round(step, 2))
         print("Saving...")
         df.to_pickle(save_path)
-import os
+
+def handle_noise_mixup(augumentation: MixupNoiseAugumentation, dataset: ImageNetKaggle, iterator: list, batch_size : int, device: str, num_workers: int):
+    """Handle mixup augumentation"""
+    chosen_indices = [idx for idx, label in enumerate(dataset.targets) if label == augumentation.class_]
+    print("Performing noisemixup for {}".format(augumentation.class_))
+    for step in iterator:
+        dataset_step = MixupDataset(
+            dataset, chosen_indices, step),
+        # dataset.alpha = step
+        dataloader = DataLoader(dataset_step, batch_size=batch_size, shuffle=False, drop_last=False)
+        to_save = test_model_with_data_loader(model, dataloader, step, augumentation, device)
+
+        df = pd.DataFrame(to_save, columns=conf.columns)
+        df["noise_percent"] = df["noise_percent"].apply(lambda numb: round(numb / augumentation.max_size, 2))
+
+        save_path = "{}/dataframes/{}.pickle".format(augumentation.template_path, round(step, 2))
+        print("Saving...")
+        df.to_pickle(save_path)
+
+
+
 
 def handle_noise(transformations, augumentation: NoiseAugumentation, dataset: CIFAR10 | ImageNet, iterator: list, batch_size: int, num_workers: int, device: str, should_override: bool):
     """Handle noise augumentation"""
@@ -135,13 +157,19 @@ if __name__ == "__main__":
                 if(isinstance(augumentation,NoiseAugumentation)):
                     new_size = transformations.crop_size[0]
                     augumentation.generate_new_mask((3, new_size, new_size))
+                elif isinstance(augumentation, MixupNoiseAugumentation):
+                    new_size = transformations.crop_size[0]
+                    augumentation.set_indexes((3, new_size, new_size))
                 formatted_path = augumentation.template_path
                 print("current augumentation {}".format(augumentation.name))
                 iterator = augumentation.make_iterator()
                 if isinstance(augumentation, MixupAugumentation):
-                    handle_mixup(augumentation, dataset, iterator, conf.batch_size)
+                    handle_mixup(augumentation, dataset, iterator, conf.batch_size, conf.device)
                 elif isinstance(augumentation, NoiseAugumentation):
                     handle_noise(transformations, augumentation, dataset, iterator, conf.batch_size, conf.num_workers, conf.device, conf.should_override)
+                elif isinstance(augumentation, MixupNoiseAugumentation):
+                    handle_noise_mixup(augumentation, dataset, iterator, conf.batch_size,  conf.device, conf.num_workers)
+
         print("Remove hooks")
         remove_hook(hook)
 

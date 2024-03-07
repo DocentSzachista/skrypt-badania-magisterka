@@ -10,6 +10,10 @@ class NoiseTransform(object):
         self.number_of_pixels = number_of_pixels
         self.shuffled_indexes = shuffled_indexes
         self.mask = mask
+        print("Sprawdzanie czy maski sa dobrych rozmiarow")
+        print(len(set(self.shuffled_indexes)))
+        print(self.mask.shape)
+        print(self.number_of_pixels)
 
 
     def __call__(self, image: np.ndarray):

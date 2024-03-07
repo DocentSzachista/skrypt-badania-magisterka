@@ -24,6 +24,7 @@ class ColorChannels(Enum):
 class SupportedAugumentations(Enum):
     NOISE = "noise"
     MIXUP = "mixup"
+    NOISEMIXUP = "noisemixup"
 
 
 class SupportedDatasets(Enum):

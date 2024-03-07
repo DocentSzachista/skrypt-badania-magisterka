@@ -67,3 +67,17 @@ class MixupAugumentation(BaseAugumentation):
         self.class_ = config["picked_class"]
         self.template_path =  pathlib.Path(
             BASE_PATH.format(self.model_name, self.tag, f"{self.name}-{self.class_}"))
+
+
+class MixupNoiseAugumentation(BaseAugumentation):
+    def __init__(self, config: dict, image_dim: list, tag: str, model_name: str) -> None:
+        super().__init__(config, tag, model_name)
+        # self.shuffled_indexes = create_and_shuffle_indexes(image_dimensions)
+        self.class_ = config['picked_class']
+        self.template_path =  pathlib.Path(
+            BASE_PATH.format(self.model_name, self.tag, f"{self.name}-{self.class_}"))
+
+    def set_indexes(self, image_dim):
+        self.shuffled_indexes = create_and_shuffle_indexes(image_dim)
+
+
