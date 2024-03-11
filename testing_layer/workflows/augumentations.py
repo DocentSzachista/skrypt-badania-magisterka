@@ -58,7 +58,7 @@ class NoiseAugumentation(BaseAugumentation):
         self.mask = generate_mask(image_dimensions)
         self.shuffled_indexes = create_and_shuffle_indexes(image_dimensions)
         self.max_size = image_dimensions[1] * image_dimensions[1]
-        self.finish_point = self.max_size * image_dimensions[1]
+        self.finish_point = self.max_size
 
 class MixupAugumentation(BaseAugumentation):
     def __init__(self, config: dict, image_dim: list, tag: str, model_name: str) -> None:
