@@ -45,15 +45,15 @@ class Config:
             self.supported_augumentations[SupportedAugumentations(augumentation["name"])]
             (augumentation, self.image_dim, tag=self.tag, model_name=self.model)
             for augumentation in json_config.get("augumentations")]
-        template_mixup = self.augumentations.pop()
-        if isinstance(template_mixup, MixupAugumentation):
-            for label in range(len(self.labels)):
-                temp = copy.deepcopy(template_mixup)
-                temp.class_ = label
-                self.augumentations.append(temp)
-        else:
+        # template_mixup = self.augumentations.pop()
+        # if isinstance(template_mixup, MixupAugumentation):
+        #     for label in range(len(self.labels)):
+        #         temp = copy.deepcopy(template_mixup)
+        #         temp.class_ = label
+        #         self.augumentations.append(temp)
+        # else:
             # obviously not a mixup
-            self.augumentations = [template_mixup]
+        # self.augumentations = [template_mixup]
 
         # self.dataset = ImageNetKaggle(root=json_config['dataset_path'], split="val", transform=lambda x: self.transform(image=np.array(x))["image"].float()/255.0)
 
