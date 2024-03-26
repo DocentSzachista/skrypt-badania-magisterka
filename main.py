@@ -19,6 +19,7 @@ from testing_layer.workflows.enums import SupportedModels
 from testing_layer.workflows.augumentations import apply_noise
 import torchvision
 import torchvision.transforms as transforms
+import os
 
 
 def converter(tensor): return tensor.detach().cpu().numpy()
@@ -38,7 +39,7 @@ def test_model_with_data_loader(model, data_loader: DataLoader, mask_intensity: 
         #             apply_noise(image, augumentation.mask, mask_intensity, augumentation.shuffled_indexes, image.shape[2] )
         #         )
         #     inputs = torch.stack(new_inputs)
-
+        torchvision.utils.save_image(inputs[0], "./porownywarka/kolejny_test{}.png".format(batch))
         inputs, targets = inputs.to(device), targets.to(device)
         logits = model(inputs)
         _, predicted = torch.max(logits, dim=1)
@@ -84,14 +85,13 @@ def handle_mixup(augumentation: MixupAugumentation, dataset: ImageNetKaggle, ite
         save_path = "{}/dataframes/{}.pickle".format(augumentation.template_path, round(step, 2))
         print("Saving...")
         df.to_pickle(save_path)
-import os
 
 def handle_noise(transformations, augumentation: NoiseAugumentation, dataset: CIFAR10 | ImageNet, iterator: list, batch_size: int, num_workers: int, device: str, should_override: bool):
     """Handle noise augumentation"""
     dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=False, drop_last=False, num_workers=num_workers)
     for step in iterator:
-        save_path = "{}/dataframes/{}.pickle".format(augumentation.template_path, round(step, 2))
-        perc = round( step*100 /augumentation.max_size, 2)
+        save_path = "{}/dataframes/data_percentage_{}.pickle".format(augumentation.template_path, round(step, 2))
+        perc = round( step*100, 2)
         if os.path.isfile(save_path) and not should_override:
             print("File detected: skip testing for {}".format(perc))
             continue
@@ -99,8 +99,8 @@ def handle_noise(transformations, augumentation: NoiseAugumentation, dataset: CI
         transformation = transforms.Compose([
             transformations,
             NoiseTransform(
-                number_of_pixels=step, shuffled_indexes=augumentation.shuffled_indexes,
-                mask=augumentation.mask)]
+                step, augumentation.image_size
+                )]
         )
         dataset.transform = transformation
         to_save = test_model_with_data_loader(model, dataloader, step, augumentation, device)
@@ -126,15 +126,15 @@ if __name__ == "__main__":
 
         print("Setting hooks for the model")
         hook = setup_a_hook(model, tested_model)
-        # print(transformations)
-        # break
+
+
         with torch.no_grad():
             model.eval()
             model.to(conf.device)
             for augumentation in conf.augumentations:
                 if(isinstance(augumentation,NoiseAugumentation)):
                     new_size = transformations.crop_size[0]
-                    augumentation.generate_new_mask((3, new_size, new_size))
+                    augumentation.image_size = (3, new_size, new_size)
                 formatted_path = augumentation.template_path
                 print("current augumentation {}".format(augumentation.name))
                 iterator = augumentation.make_iterator()

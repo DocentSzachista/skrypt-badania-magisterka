@@ -3,9 +3,9 @@ import torch
 from .utils import BASE_PATH
 import pathlib
 import copy
+import torchvision
 
 def create_and_shuffle_indexes(matrix_shape: tuple):
-    print(matrix_shape)
     np.random.seed(0)
     indexes = [
         i * matrix_shape[1] + j for i in range(matrix_shape[1]) for j in range(matrix_shape[1])
@@ -15,8 +15,9 @@ def create_and_shuffle_indexes(matrix_shape: tuple):
 
 
 def generate_mask(shape: tuple):
-    torch.manual_seed(0)
-    temp = torch.randn(shape)*255
+    temp = torch.rand(shape)
+    # Wszystkie modele mają taką samą normalizację
+    temp = torchvision.transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])(temp)
     return temp
 
 
@@ -47,18 +48,11 @@ class BaseAugumentation:
 class NoiseAugumentation(BaseAugumentation):
     def __init__(self, config: dict, image_dim: list, tag: str, model_name: str) -> None:
         super().__init__(config, tag, model_name)
-        self.mask = generate_mask(list(reversed(image_dim)))
-        self.shuffled_indexes = create_and_shuffle_indexes(image_dim)
         self.max_size = image_dim[1] * image_dim[2]
         self.template_path = pathlib.Path(
             BASE_PATH.format(self.model_name, self.tag, self.name))
+        self.image_size = (3, 32, 32)
 
-    def generate_new_mask(self, image_dimensions):
-        # Tylko do celów imageneta
-        self.mask = generate_mask(image_dimensions)
-        self.shuffled_indexes = create_and_shuffle_indexes(image_dimensions)
-        self.max_size = image_dimensions[1] * image_dimensions[1]
-        self.finish_point = self.max_size
 
 class MixupAugumentation(BaseAugumentation):
     def __init__(self, config: dict, image_dim: list, tag: str, model_name: str) -> None:
