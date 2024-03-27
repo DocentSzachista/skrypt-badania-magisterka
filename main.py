@@ -39,7 +39,7 @@ def test_model_with_data_loader(model, data_loader: DataLoader, mask_intensity: 
         #             apply_noise(image, augumentation.mask, mask_intensity, augumentation.shuffled_indexes, image.shape[2] )
         #         )
         #     inputs = torch.stack(new_inputs)
-        torchvision.utils.save_image(inputs[0], "./porownywarka/kolejny_test{}.png".format(batch))
+        # torchvision.utils.save_image(inputs[0], "./porownywarka/kolejny_test{}.png".format(batch))
         inputs, targets = inputs.to(device), targets.to(device)
         logits = model(inputs)
         _, predicted = torch.max(logits, dim=1)
