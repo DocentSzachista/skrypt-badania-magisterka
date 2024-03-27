@@ -42,7 +42,8 @@ class BaseAugumentation:
         self.step = config.get("step")
         self.template_path : pathlib.Path
     def make_iterator(self):
-        return np.arange(self.start_point, self.finish_point, self.step)
+        step = int((self.finish_point - self.start_point) / self.step)+1
+        return np.linspace(self.start_point, self.finish_point, step, endpoint=True)
 
 
 class NoiseAugumentation(BaseAugumentation):
